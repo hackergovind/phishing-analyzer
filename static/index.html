@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AI-Powered Phishing Email Analysis Dashboard — Real-time threat detection and email security monitoring.">
+    <title>PhishGuard AI — Phishing Email Analyzer</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="detailModal">
+    <div class="modal">
+        <button class="modal-close" onclick="closeModal()">✕ Close</button>
+        <h3 id="modalTitle">Email Analysis Details</h3>
+        <div id="modalBody"></div>
+    </div>
+</div>
+
+<div class="app-container">
+
+    <!-- ======== Navbar ======== -->
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <div class="logo-icon">🛡️</div>
+            <div>
+                <h1>PhishGuard AI</h1>
+                <span>Advanced Phishing Detection Engine v2.0</span>
+            </div>
+        </div>
+        <div class="navbar-status">
+            <div class="scanner-badge" id="scannerBadge">
+                <span class="dot"></span>
+                <span id="scannerBadgeText">Scanner Offline</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ======== Stats Row ======== -->
+    <div class="stats-row">
+        <div class="stat-card total">
+            <div class="stat-label">Total Scanned</div>
+            <div class="stat-value" id="statTotal">0</div>
+            <div class="stat-sub">All time</div>
+        </div>
+        <div class="stat-card safe">
+            <div class="stat-label">Safe</div>
+            <div class="stat-value" id="statSafe">0</div>
+            <div class="stat-sub">Delivered</div>
+        </div>
+        <div class="stat-card suspicious">
+            <div class="stat-label">Suspicious</div>
+            <div class="stat-value" id="statSuspicious">0</div>
+            <div class="stat-sub">Flagged</div>
+        </div>
+        <div class="stat-card phishing">
+            <div class="stat-label">Phishing</div>
+            <div class="stat-value" id="statPhishing">0</div>
+            <div class="stat-sub">Quarantined</div>
+        </div>
+    </div>
+
+    <!-- ======== Main Grid ======== -->
+    <div class="main-grid">
+
+        <!-- Chart Card -->
+        <div class="glass-card">
+            <div class="card-header">
+                <h2>Threat Distribution</h2>
+                <div class="card-icon">📊</div>
+            </div>
+            <div class="card-body">
+                <div class="chart-wrapper">
+                    <canvas id="threatChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Manual Analysis Card -->
+        <div class="glass-card">
+            <div class="card-header">
+                <h2>Analyze Email Text</h2>
+                <div class="card-icon">🔍</div>
+            </div>
+            <div class="card-body">
+                <textarea
+                    class="analyze-textarea"
+                    id="analyzeInput"
+                    placeholder="Paste email body text here to analyze for phishing indicators…"
+                ></textarea>
+                <div class="btn-row">
+                    <button class="btn btn-primary" id="analyzeBtn" onclick="analyzeText()">
+                        🛡️ Analyze
+                    </button>
+                    <button class="btn btn-secondary" onclick="clearAnalysis()">Clear</button>
+                </div>
+                <div class="result-inline" id="inlineResult">
+                    <div class="result-header-row">
+                        <div>
+                            <span class="status-badge" id="inlineStatus"></span>
+                        </div>
+                        <div class="result-score" id="inlineScore"></div>
+                    </div>
+                    <div style="font-size:0.8rem;color:var(--text-secondary);margin-top:4px;" id="inlineAction"></div>
+                    <div style="font-size:0.78rem;color:var(--text-muted);margin-top:2px;">
+                        Confidence: <strong id="inlineConfidence"></strong>
+                    </div>
+                    <ul class="result-evidence" id="inlineEvidence"></ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mail Config Card -->
+        <div class="glass-card" style="grid-column: 1 / -1;">
+            <div class="card-header">
+                <h2>📬 Mail Scanner Configuration</h2>
+                <div class="card-icon">⚙️</div>
+            </div>
+            <div class="card-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>IMAP Host</label>
+                        <input class="form-input" id="mailHost" type="text" placeholder="imap.gmail.com" value="imap.gmail.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Port</label>
+                        <input class="form-input" id="mailPort" type="number" placeholder="993" value="993">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <input class="form-input" id="mailEmail" type="email" placeholder="your-email@gmail.com">
+                    </div>
+                    <div class="form-group">
+                        <label>App Password</label>
+                        <input class="form-input" id="mailPassword" type="password" placeholder="xxxx xxxx xxxx xxxx">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Folder</label>
+                        <input class="form-input" id="mailFolder" type="text" placeholder="INBOX" value="INBOX">
+                    </div>
+                    <div class="form-group">
+                        <label>Poll Interval (seconds)</label>
+                        <input class="form-input" id="mailInterval" type="number" placeholder="30" value="30">
+                    </div>
+                </div>
+                <div class="btn-row">
+                    <button class="btn btn-success" id="connectBtn" onclick="connectMail()">
+                        ▶ Connect & Start Scanning
+                    </button>
+                    <button class="btn btn-danger" id="disconnectBtn" onclick="disconnectMail()" disabled>
+                        ⏹ Stop Scanner
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======== Results Table ======== -->
+    <div class="glass-card results-section">
+        <div class="card-header">
+            <h2>Recent Scan Results</h2>
+            <button class="btn btn-secondary" onclick="refreshResults()" style="padding:6px 14px;font-size:0.76rem;">
+                ↻ Refresh
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="results-table-wrapper">
+                <table class="results-table" id="resultsTable">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Sender</th>
+                            <th>Subject</th>
+                            <th>Status</th>
+                            <th>Threat Score</th>
+                            <th>Confidence</th>
+                            <th>Source</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsBody">
+                        <!-- Filled by JS -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="empty-state" id="emptyState">
+                <div class="empty-icon">📭</div>
+                <p>No scan results yet. Analyze an email or connect your mail to get started.</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

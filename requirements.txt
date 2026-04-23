@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+scikit-learn
+pandas
+python-multipart
+beautifulsoup4
+requests
+aiohttp
+joblib
+nltk
+python-Levenshtein
+numpy
+aiosqlite
