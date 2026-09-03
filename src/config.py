@@ -8,7 +8,10 @@ import os
 # ---------------------------------------------------------------------------
 # API Keys (read from environment; fall back to empty for graceful degradation)
 # ---------------------------------------------------------------------------
-VIRUSTOTAL_API_KEY: str = os.environ.get("VIRUSTOTAL_API_KEY", "")
+VIRUSTOTAL_API_KEY: str = os.environ.get(
+    "VIRUSTOTAL_API_KEY",
+    "a4c9f495065088aeacdc116dff240c72025794410428b5dae164c1de37240d33"
+)
 
 
 # ---------------------------------------------------------------------------

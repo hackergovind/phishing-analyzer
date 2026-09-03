@@ -208,24 +208,48 @@ def _score_headers(parsed_data: dict, verdict: AnalysisVerdict) -> float:
 
 
 def _score_urls(parsed_data: dict, verdict: AnalysisVerdict) -> float:
-    """Score URLs via VirusTotal (if API key set) or heuristic-only fallback."""
-    urls = parsed_data.get("urls", [])
-    if not urls:
-        return 0.0
+    """Score URLs and sender domains via VirusTotal, OpenPhish, and heuristic analysis."""
+    from src.threat_intel import evaluate_url_threat
 
+    urls = parsed_data.get("urls", [])
     max_risk = 0.0
-    for url in urls[:5]:  # Cap at 5 URLs to avoid API abuse
-        risk = _check_single_url(url)
-        if risk > max_risk:
-            max_risk = risk
-        if risk > 0.3:
+
+    # 1. Inspect sender domain via threat intel
+    sender = parsed_data.get("sender", {})
+    sender_domain = sender.get("domain", "")
+    if sender_domain and sender_domain not in TRUSTED_DOMAINS:
+        sender_intel = evaluate_url_threat(f"http://{sender_domain}")
+        if sender_intel.get("flagged"):
             verdict.evidence.append({
-                "source": "URL Scan",
-                "detail": f"Risk {risk:.0%} for {url[:80]}",
-                "contribution": round(risk * WEIGHT_URL_RISK, 1),
+                "source": sender_intel["source"],
+                "detail": f"Sender domain: {sender_intel['detail']}",
+                "contribution": round(sender_intel["risk"] * WEIGHT_URL_RISK, 1),
+            })
+            max_risk = max(max_risk, sender_intel["risk"])
+
+    # 2. Inspect embedded URLs
+    for url in urls[:5]:  # Cap at 5 URLs
+        intel = evaluate_url_threat(url)
+        heur_risk = _heuristic_url_risk(url)
+        combined_risk = max(intel.get("risk", 0.0), heur_risk)
+
+        if combined_risk > max_risk:
+            max_risk = combined_risk
+
+        if intel.get("flagged"):
+            verdict.evidence.append({
+                "source": intel["source"],
+                "detail": intel["detail"],
+                "contribution": round(intel["risk"] * WEIGHT_URL_RISK, 1),
+            })
+        elif combined_risk > 0.3:
+            verdict.evidence.append({
+                "source": "URL Risk",
+                "detail": f"Structural risk {combined_risk:.0%} for {url[:80]}",
+                "contribution": round(combined_risk * WEIGHT_URL_RISK, 1),
             })
 
-    return max_risk * WEIGHT_URL_RISK
+    return min(max_risk, 1.0) * WEIGHT_URL_RISK
 
 
 # ---------------------------------------------------------------------------
@@ -234,49 +258,11 @@ def _score_urls(parsed_data: dict, verdict: AnalysisVerdict) -> float:
 
 @lru_cache(maxsize=256)
 def _check_single_url(url: str) -> float:
-    """
-    Check a URL against VirusTotal if API key is configured.
-    Falls back to heuristic-only scoring otherwise.
-    Returns 0.0 – 1.0 risk score.
-    """
-    if VIRUSTOTAL_API_KEY:
-        try:
-            return _virustotal_scan(url)
-        except Exception as exc:
-            logger.warning("VirusTotal lookup failed for %s: %s", url[:60], exc)
-    # Fallback: basic heuristic risk
-    return _heuristic_url_risk(url)
+    """Check a URL against threat intelligence feeds with heuristic fallback."""
+    from src.threat_intel import evaluate_url_threat
+    intel = evaluate_url_threat(url)
+    return max(intel.get("risk", 0.0), _heuristic_url_risk(url))
 
-
-def _virustotal_scan(url: str) -> float:
-    """Query the VirusTotal v3 URL report API."""
-    url_id = base64.urlsafe_b64encode(url.encode()).decode().rstrip("=")
-    api_url = f"https://www.virustotal.com/api/v3/urls/{url_id}"
-    headers = {"x-apikey": VIRUSTOTAL_API_KEY}
-
-    resp = requests.get(api_url, headers=headers, timeout=10)
-    if resp.status_code == 404:
-        # URL not in VT database — submit it
-        submit_resp = requests.post(
-            "https://www.virustotal.com/api/v3/urls",
-            headers=headers,
-            data={"url": url},
-            timeout=10,
-        )
-        if submit_resp.status_code == 200:
-            logger.info("Submitted URL to VirusTotal: %s", url[:60])
-        return 0.1  # Unknown — slightly elevated but not alarming
-
-    if resp.status_code != 200:
-        return 0.0
-
-    data = resp.json().get("data", {}).get("attributes", {})
-    stats = data.get("last_analysis_stats", {})
-    malicious = stats.get("malicious", 0)
-    suspicious = stats.get("suspicious", 0)
-    total = sum(stats.values()) if stats else 1
-
-    return (malicious + 0.5 * suspicious) / max(total, 1)
 
 
 def _heuristic_url_risk(url: str) -> float:
