@@ -18,7 +18,7 @@ GOOGLE_SAFE_BROWSING_API_KEY: str = os.environ.get(
 )
 ABUSEIPDB_API_KEY: str = os.environ.get(
     "ABUSEIPDB_API_KEY",
-    ""
+    "c974088d0bcb6f83451537e0b71580de39d38dd16f4fb6bcc9f1ac522c0894162d74bd31aa93986d"
 )
 
 

@@ -204,6 +204,19 @@ def _score_headers(parsed_data: dict, verdict: AnalysisVerdict) -> float:
     if sender.get("display_name_has_email"):
         penalty += 0.15
 
+    # Check origin IP if present in headers
+    client_ip = headers.get("client_ip")
+    if client_ip:
+        from src.threat_intel import check_abuseipdb_ip
+        ip_res = check_abuseipdb_ip(client_ip)
+        if ip_res and ip_res.get("score", 0) >= 50:
+            penalty += 0.3
+            verdict.evidence.append({
+                "source": "AbuseIPDB",
+                "detail": f"Sender IP {client_ip} flagged with {ip_res['score']}% abuse confidence score",
+                "contribution": round(0.3 * WEIGHT_HEADER_AUTH, 1)
+            })
+
     return min(penalty, 1.0) * WEIGHT_HEADER_AUTH
 
 
