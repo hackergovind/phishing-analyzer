@@ -19,13 +19,14 @@ from urllib.parse import urlparse
 
 import requests
 
-from src.config import VIRUSTOTAL_API_KEY, TRUSTED_DOMAINS
+from src.config import (
+    VIRUSTOTAL_API_KEY,
+    TRUSTED_DOMAINS,
+    GOOGLE_SAFE_BROWSING_API_KEY,
+    ABUSEIPDB_API_KEY,
+)
 
 logger = logging.getLogger(__name__)
-
-# Optional additional threat API keys
-GOOGLE_SAFE_BROWSING_API_KEY = os.environ.get("GOOGLE_SAFE_BROWSING_API_KEY", "")
-ABUSEIPDB_API_KEY = os.environ.get("ABUSEIPDB_API_KEY", "")
 
 # ---------------------------------------------------------------------------
 # OpenPhish Live Community Cache
@@ -129,6 +130,40 @@ def check_virustotal_domain(domain: str) -> Optional[dict]:
 
 
 # ---------------------------------------------------------------------------
+# AbuseIPDB API v2 (IP Reputation)
+# ---------------------------------------------------------------------------
+@lru_cache(maxsize=256)
+def check_abuseipdb_ip(ip: str) -> Optional[dict]:
+    """Query AbuseIPDB API v2 for IP reputation."""
+    if not ABUSEIPDB_API_KEY:
+        return None
+
+    try:
+        url = "https://api.abuseipdb.com/api/v2/check"
+        headers = {
+            "Key": ABUSEIPDB_API_KEY,
+            "Accept": "application/json"
+        }
+        params = {
+            "ipAddress": ip,
+            "maxAgeInDays": 90
+        }
+        resp = requests.get(url, headers=headers, params=params, timeout=6)
+        if resp.status_code == 200:
+            data = resp.json().get("data", {})
+            score = data.get("abuseConfidenceScore", 0)
+            return {
+                "score": score,
+                "is_whitelisted": data.get("isWhitelisted", False),
+                "total_reports": data.get("totalReports", 0)
+            }
+    except Exception as exc:
+        logger.warning("AbuseIPDB check failed for IP %s: %s", ip, exc)
+
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Google Safe Browsing v4 (Optional)
 # ---------------------------------------------------------------------------
 @lru_cache(maxsize=256)
@@ -155,6 +190,8 @@ def check_google_safe_browsing(url: str) -> Optional[dict]:
                 threat_type = matches[0].get("threatType", "MALICIOUS")
                 return {"flagged": True, "threat_type": threat_type}
             return {"flagged": False}
+        elif resp.status_code == 403:
+            logger.debug("Google Safe Browsing: API access restricted or needs enabling in Google Console.")
     except Exception as exc:
         logger.warning("Google Safe Browsing check failed: %s", exc)
 
@@ -269,6 +306,19 @@ def evaluate_url_threat(url: str) -> dict:
             "source": "Google Safe Browsing",
             "detail": f"Google Safe Browsing flagged URL as {gsb.get('threat_type')}: {clean_url[:70]}"
         }
+
+    # 5. AbuseIPDB (if host is an IP address)
+    if domain and re.match(r"^\d{1,3}(\.\d{1,3}){3}$", domain):
+        ip_data = check_abuseipdb_ip(domain)
+        if ip_data:
+            score = ip_data.get("score", 0)
+            if score >= 50:
+                return {
+                    "risk": min(score / 100.0, 1.0),
+                    "flagged": True,
+                    "source": "AbuseIPDB",
+                    "detail": f"AbuseIPDB flagged host IP '{domain}': {score}% abuse confidence score"
+                }
 
     return {
         "risk": 0.0,

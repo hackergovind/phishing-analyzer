@@ -12,6 +12,14 @@ VIRUSTOTAL_API_KEY: str = os.environ.get(
     "VIRUSTOTAL_API_KEY",
     "a4c9f495065088aeacdc116dff240c72025794410428b5dae164c1de37240d33"
 )
+GOOGLE_SAFE_BROWSING_API_KEY: str = os.environ.get(
+    "GOOGLE_SAFE_BROWSING_API_KEY",
+    "AIzaSyB-_mDnaR7FnvrTNssluCe6dwv-fnDmA7g"
+)
+ABUSEIPDB_API_KEY: str = os.environ.get(
+    "ABUSEIPDB_API_KEY",
+    ""
+)
 
 
 # ---------------------------------------------------------------------------
