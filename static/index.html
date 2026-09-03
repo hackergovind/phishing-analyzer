@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="PhishGuard — Multi-signal email threat analysis and real-time IMAP mailbox verification.">
-    <title>PhishGuard — Email Threat Detection</title>
+    <meta name="description" content="PhishGuard — Real-time mailbox protection with instant desktop push notifications for phishing threats.">
+    <title>PhishGuard — Mailbox Threat Defense & Push Alerts</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -16,11 +16,26 @@
 <!-- Toast Notification Container -->
 <div class="toast-container" id="toastContainer"></div>
 
+<!-- Urgent Phishing Alert Banner / Modal -->
+<div class="alert-modal-overlay" id="urgentAlertModal">
+    <div class="alert-modal">
+        <div class="alert-icon-ring">⚠️</div>
+        <div class="alert-modal-title">Phishing Email Quarantined</div>
+        <p class="alert-modal-sub" id="alertModalDesc">
+            An incoming phishing email was intercepted and moved to your Quarantine folder to protect you.
+        </p>
+        <div class="alert-modal-details" id="alertModalDetails"></div>
+        <div class="btn-row" style="justify-content:center; margin-top:20px;">
+            <button class="btn btn-primary" onclick="closeUrgentAlert()">Acknowledge</button>
+        </div>
+    </div>
+</div>
+
 <!-- Email Detail Modal -->
 <div class="modal-overlay" id="detailModal">
     <div class="modal">
         <div class="modal-header-bar">
-            <h3 id="modalTitle">Email Analysis Details</h3>
+            <h3 id="modalTitle">Scan Inspection Details</h3>
             <button class="modal-close" onclick="closeModal()">✕ Close</button>
         </div>
         <div id="modalBody"></div>
@@ -33,17 +48,11 @@
     <nav class="top-nav">
         <div class="nav-left">
             <div class="brand-cluster">
-                <svg class="spike-mark" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <svg class="spike-mark" viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
                     <path d="M12 2C12 7.5 7.5 12 2 12C7.5 12 12 16.5 12 22C12 16.5 16.5 12 22 12C16.5 12 12 7.5 12 2Z"/>
                 </svg>
                 <span class="brand-name">PhishGuard</span>
-                <span class="brand-version">v2.0</span>
-            </div>
-            <div class="nav-links">
-                <a href="#analysis-section" class="nav-link">Analyze</a>
-                <a href="#live-inspection" class="nav-link">Inspector</a>
-                <a href="#scanner-section" class="nav-link">IMAP Scanner</a>
-                <a href="#results-section" class="nav-link">Audit Log</a>
+                <span class="brand-version">Inbox Defense</span>
             </div>
         </div>
         <div class="nav-right">
@@ -51,32 +60,56 @@
                 <span class="status-dot"></span>
                 <span id="scannerBadgeText">Scanner Offline</span>
             </div>
-            <a href="#analysis-section" class="btn btn-primary btn-sm">Inspect Email</a>
+            <button class="btn btn-sm btn-secondary" id="notifStatusBtn" onclick="requestNotificationPermission()">
+                <span id="notifBtnIcon">🔔</span>
+                <span id="notifBtnText">Enable Push Alerts</span>
+            </button>
         </div>
     </nav>
 
     <!-- ======== Hero Section ======== -->
     <header class="hero-band">
         <div class="hero-content">
-            <span class="badge-coral">Mail Defense</span>
-            <h1 class="hero-title">Inspect email signals.<br>Stop impersonation before delivery.</h1>
+            <span class="badge-coral">Active Mailbox Defense</span>
+            <h1 class="hero-title">Connect your mailbox.<br>Get alerted the moment phishing lands.</h1>
             <p class="hero-sub">
-                Four verification layers evaluate message authenticity: calibrated ensemble learning, header validation (SPF, DKIM, DMARC), structural heuristics, and domain typosquatting detection.
+                Connect your Gmail or Outlook mailbox via secure IMAP. Incoming emails are automatically evaluated across four defensive layers. Dangerous emails are quarantined, and instant browser desktop notifications alert you before you click.
             </p>
         </div>
     </header>
 
+    <!-- ======== Push Notification Status Banner ======== -->
+    <div class="notif-card" id="notifCard">
+        <div class="notif-card-left">
+            <div class="notif-icon-circle">🔔</div>
+            <div>
+                <h4 class="notif-card-title">Desktop Push Notifications</h4>
+                <p class="notif-card-sub" id="notifCardStatusText">
+                    Allow browser push notifications to receive immediate desktop alerts whenever a phishing email is detected.
+                </p>
+            </div>
+        </div>
+        <div class="notif-card-actions">
+            <button class="btn btn-primary btn-sm" id="grantNotifBtn" onclick="requestNotificationPermission()">
+                Allow Notifications
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="sendTestAlert()">
+                Test Alert Chime
+            </button>
+        </div>
+    </div>
+
     <!-- ======== Stats Summary ======== -->
     <section class="stats-row">
         <div class="stat-card">
-            <span class="stat-label">Total Scanned</span>
+            <span class="stat-label">Total Evaluated</span>
             <div class="stat-value" id="statTotal">0</div>
-            <span class="stat-sub">Audit trail records</span>
+            <span class="stat-sub">Inbox messages scanned</span>
         </div>
         <div class="stat-card">
-            <span class="stat-label">Safe</span>
+            <span class="stat-label">Clean Delivered</span>
             <div class="stat-value stat-safe-val" id="statSafe">0</div>
-            <span class="stat-sub">Delivered clean</span>
+            <span class="stat-sub">Legitimate communications</span>
         </div>
         <div class="stat-card">
             <span class="stat-label">Suspicious</span>
@@ -84,132 +117,83 @@
             <span class="stat-sub">Flagged with warning</span>
         </div>
         <div class="stat-card">
-            <span class="stat-label">Phishing</span>
+            <span class="stat-label">Phishing Intercepted</span>
             <div class="stat-value stat-phishing-val" id="statPhishing">0</div>
-            <span class="stat-sub">Quarantined</span>
+            <span class="stat-sub">Quarantined automatically</span>
         </div>
     </section>
 
-    <!-- ======== Main Grid: Inspector & Interactive Analysis ======== -->
-    <div class="main-grid" id="analysis-section">
+    <!-- ======== Main Grid: Mailbox Connection & Live Monitor ======== -->
+    <div class="main-grid">
 
-        <!-- Left: Analysis Workplace (Cream Card) -->
+        <!-- Left: Mailbox Connection Center (Cream Card) -->
         <div class="surface-card">
             <div class="card-header">
-                <div class="tabs-nav">
-                    <button class="tab-btn active" id="tabBtnText" onclick="switchTab('text')">Raw Text</button>
-                    <button class="tab-btn" id="tabBtnFile" onclick="switchTab('file')">Upload .EML</button>
-                    <button class="tab-btn" id="tabBtnTrain" onclick="switchTab('train')">Model Retraining</button>
+                <div>
+                    <h2 class="section-headline">Connect Email Account</h2>
+                    <p class="section-sub">Select your provider and enter connection credentials.</p>
                 </div>
+                <span class="badge-pill">IMAP SSL</span>
             </div>
-            <div class="card-body">
 
-                <!-- Tab 1: Text Input -->
-                <div class="tab-pane active" id="paneText">
-                    <div class="presets-bar">
-                        <span class="presets-label">Sample Emails:</span>
-                        <button class="preset-chip" onclick="loadPreset('paypal')">PayPal Spoof</button>
-                        <button class="preset-chip" onclick="loadPreset('microsoft')">Microsoft Alert</button>
-                        <button class="preset-chip" onclick="loadPreset('dropbox')">Dropbox Reset</button>
-                        <button class="preset-chip" onclick="loadPreset('safe')">Quarterly Sync</button>
-                        <button class="preset-chip" onclick="loadPreset('nigerian')">Wire Transfer</button>
-                    </div>
-                    <textarea
-                        class="text-input text-area"
-                        id="analyzeInput"
-                        rows="7"
-                        placeholder="Paste email headers and body text here for multi-signal verification…"
-                    ></textarea>
-                    <div class="btn-row">
-                        <button class="btn btn-primary" id="analyzeBtn" onclick="analyzeText()">
-                            Analyze Message
-                        </button>
-                        <button class="btn btn-secondary" onclick="clearAnalysis()">Clear</button>
-                    </div>
-                </div>
-
-                <!-- Tab 2: EML File Upload -->
-                <div class="tab-pane" id="paneFile">
-                    <div class="drop-zone" id="dropZone" onclick="document.getElementById('emlFileInput').click()">
-                        <div class="drop-zone-icon">
-                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                <polyline points="14 2 14 8 20 8"></polyline>
-                                <line x1="12" y1="18" x2="12" y2="12"></line>
-                                <line x1="9" y1="15" x2="12" y2="12"></line>
-                                <line x1="15" y1="15" x2="12" y2="12"></line>
-                            </svg>
-                        </div>
-                        <div class="drop-zone-title">Drop raw <code>.eml</code> file here, or click to browse</div>
-                        <div class="drop-zone-sub">Parses full RFC 822 MIME headers, DKIM signatures, SPF results, and attachments</div>
-                        <input type="file" id="emlFileInput" accept=".eml" style="display:none" onchange="handleFileSelect(event)">
-                        <div id="selectedFileName" class="selected-file-badge" style="display:none"></div>
-                    </div>
-                    <div class="btn-row" style="margin-top:16px;">
-                        <button class="btn btn-primary" id="analyzeFileBtn" onclick="uploadEmlFile()" disabled>
-                            Analyze EML File
-                        </button>
-                        <button class="btn btn-secondary" onclick="clearFileUpload()">Clear</button>
-                    </div>
-                </div>
-
-                <!-- Tab 3: Model Retraining -->
-                <div class="tab-pane" id="paneTrain">
-                    <p class="section-desc">
-                        Retrain the calibrated soft-voting ensemble (Logistic Regression, Random Forest, Gradient Boosting) on verified samples or upload a custom CSV dataset.
-                    </p>
-                    <div class="form-group" style="margin-bottom:16px;">
-                        <label class="form-label">Custom Dataset CSV (optional):</label>
-                        <input type="file" class="text-input" id="trainCsvInput" accept=".csv" style="padding:6px 12px;">
-                    </div>
-                    <div class="btn-row">
-                        <button class="btn btn-primary" id="trainBtn" onclick="triggerTraining()">
-                            Retrain Classifier
-                        </button>
-                    </div>
-                    <div id="trainReportArea" class="train-report-card" style="display:none">
-                        <span class="code-badge">Classification Report</span>
-                        <pre id="trainReportContent"></pre>
-                    </div>
-                </div>
-
-                <!-- Result Card (Shared) -->
-                <div class="result-box" id="inlineResult">
-                    <div class="result-top">
-                        <div class="result-verdict">
-                            <span class="status-pill" id="inlineStatus"></span>
-                            <span class="result-action-text" id="inlineAction"></span>
-                        </div>
-                        <div class="score-display">
-                            <span class="score-number" id="inlineScore">0.0</span>
-                            <span class="score-scale">/ 100</span>
-                        </div>
-                    </div>
-                    <div class="result-meta">
-                        Confidence Floor: <strong id="inlineConfidence">0%</strong>
-                    </div>
-
-                    <!-- Breakdown Chips -->
-                    <div class="breakdown-wrap">
-                        <span class="breakdown-title">Signal Breakdown</span>
-                        <div class="breakdown-chips" id="breakdownChips"></div>
-                    </div>
-
-                    <!-- Evidence List -->
-                    <div class="evidence-section">
-                        <div class="evidence-header">
-                            <h4>Evidence Trail</h4>
-                            <button class="btn-copy" onclick="copyReport()">Copy Report</button>
-                        </div>
-                        <ul class="evidence-list" id="inlineEvidence"></ul>
-                    </div>
-                </div>
-
+            <!-- Provider Presets -->
+            <div class="presets-bar" style="margin-bottom:20px;">
+                <span class="presets-label">Provider:</span>
+                <button class="preset-chip active" id="provGmail" onclick="selectProvider('gmail')">Gmail</button>
+                <button class="preset-chip" id="provOutlook" onclick="selectProvider('outlook')">Outlook / 365</button>
+                <button class="preset-chip" id="provYahoo" onclick="selectProvider('yahoo')">Yahoo Mail</button>
+                <button class="preset-chip" id="provCustom" onclick="selectProvider('custom')">Custom IMAP</button>
             </div>
+
+            <!-- Helper Box for Gmail App Password -->
+            <div class="helper-box" id="gmailHelpBox">
+                <strong>Gmail Note:</strong> Use a 16-character <em>Google App Password</em>. Normal account passwords will be rejected by Google.
+                <a href="https://myaccount.google.com/apppasswords" target="_blank" class="helper-link">Generate App Password ↗</a>
+            </div>
+
+            <form id="mailForm" onsubmit="event.preventDefault(); connectMail();">
+                <div class="form-grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Email Address</label>
+                        <input class="text-input" id="mailEmail" type="email" placeholder="you@gmail.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">App Password</label>
+                        <input class="text-input" id="mailPassword" type="password" placeholder="16-character token" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">IMAP Host</label>
+                        <input class="text-input" id="mailHost" type="text" value="imap.gmail.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Port</label>
+                        <input class="text-input" id="mailPort" type="number" value="993" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Folder to Protect</label>
+                        <input class="text-input" id="mailFolder" type="text" value="INBOX">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Scan Interval (seconds)</label>
+                        <input class="text-input" id="mailInterval" type="number" value="30">
+                    </div>
+                </div>
+
+                <div class="btn-row" style="margin-top:24px;">
+                    <button class="btn btn-primary" id="connectBtn" type="submit">
+                        Connect & Start Monitoring
+                    </button>
+                    <button class="btn btn-secondary" id="disconnectBtn" type="button" onclick="disconnectMail()" disabled>
+                        Disconnect Mailbox
+                    </button>
+                </div>
+            </form>
+
+            <div id="connectionFeedback" class="connection-status-block" style="display:none;"></div>
         </div>
 
-        <!-- Right: Threat Distribution & Chrome Mockup (Dark Surface Card) -->
-        <div class="surface-dark-card" id="live-inspection">
+        <!-- Right: Active Defense Monitor (Dark Surface Card) -->
+        <div class="surface-dark-card">
             <div class="card-header-dark">
                 <div class="card-header-left">
                     <div class="window-dots">
@@ -217,106 +201,63 @@
                         <span class="dot-yellow"></span>
                         <span class="dot-green"></span>
                     </div>
-                    <span class="window-title">Threat Intelligence & Signals</span>
+                    <span class="window-title">Autonomous Defense Engine</span>
                 </div>
-                <span class="code-pill">Live Metrics</span>
+                <span class="code-pill" id="defensePill">Standby</span>
             </div>
+
             <div class="card-body-dark">
                 <div class="chart-container">
                     <canvas id="threatChart"></canvas>
                 </div>
 
-                <!-- Dark Code Inspector Panel -->
+                <!-- Code Inspector Panel: Defense Rules -->
                 <div class="code-inspector-block">
                     <div class="inspector-header">
-                        <span class="inspector-label">Inspection Architecture</span>
-                        <span class="code-status-dot">Online</span>
+                        <span class="inspector-label">Protection Policies</span>
+                        <span class="code-status-dot" id="policyDot">Active</span>
                     </div>
-                    <pre class="code-lines"><code><span class="c-comment"># Multi-signal evaluation flow</span>
-<span class="c-key">weights</span>:
-  ml_ensemble:      <span class="c-val">35.0</span>  <span class="c-comment"># Soft-voting probabilities</span>
-  heuristics:       <span class="c-val">30.0</span>  <span class="c-comment"># Urgency, brand spoofing</span>
-  header_auth:      <span class="c-val">15.0</span>  <span class="c-comment"># SPF, DKIM, DMARC</span>
-  url_risk:         <span class="c-val">20.0</span>  <span class="c-comment"># Typosquatting, IP links</span>
-<span class="c-key">thresholds</span>:
-  suspicious:       <span class="c-val">35.0</span>  <span class="c-comment"># Warning banner</span>
-  phishing:         <span class="c-val">60.0</span>  <span class="c-comment"># Quarantine gate (conf >= 60%)</span></code></pre>
-                </div>
-            </div>
-        </div>
-
-        <!-- Full-Width: IMAP Mailbox Scanner Configuration -->
-        <div class="surface-card full-span" id="scanner-section">
-            <div class="card-header">
-                <div>
-                    <h2 class="section-headline">IMAP Mailbox Scanner</h2>
-                    <p class="section-sub">Connect to an IMAP mailbox. Unread messages are scored automatically; identified threats move to quarantine.</p>
-                </div>
-                <span class="badge-pill">Autonomous</span>
-            </div>
-            <div class="card-body">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label class="form-label">IMAP Host</label>
-                        <input class="text-input" id="mailHost" type="text" value="imap.gmail.com" placeholder="imap.gmail.com">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Port</label>
-                        <input class="text-input" id="mailPort" type="number" value="993" placeholder="993">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Email Address</label>
-                        <input class="text-input" id="mailEmail" type="email" placeholder="user@company.com">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">App Password</label>
-                        <input class="text-input" id="mailPassword" type="password" placeholder="16-character app password">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Folder to Monitor</label>
-                        <input class="text-input" id="mailFolder" type="text" value="INBOX">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Poll Interval (seconds)</label>
-                        <input class="text-input" id="mailInterval" type="number" value="30">
-                    </div>
-                </div>
-                <div class="btn-row" style="margin-top:20px;">
-                    <button class="btn btn-primary" id="connectBtn" onclick="connectMail()">
-                        Connect & Start Monitoring
-                    </button>
-                    <button class="btn btn-secondary" id="disconnectBtn" onclick="disconnectMail()" disabled>
-                        Stop Scanner
-                    </button>
+                    <pre class="code-lines"><code><span class="c-comment"># Active Mailbox Defense Rules</span>
+<span class="c-key">auto_quarantine</span>:    <span class="c-val">true</span>   <span class="c-comment"># Move phishing to Quarantine folder</span>
+<span class="c-key">push_alerts</span>:        <span class="c-val">true</span>   <span class="c-comment"># Web Push Notification on detection</span>
+<span class="c-key">sound_alarm</span>:        <span class="c-val">true</span>   <span class="c-comment"># Audio chime for immediate awareness</span>
+<span class="c-key">quarantine_score</span>:   <span class="c-val">60.0</span>   <span class="c-comment"># Threshold for quarantine action</span>
+<span class="c-key">warning_score</span>:      <span class="c-val">35.0</span>   <span class="c-comment"># Threshold for suspicious warning</span></code></pre>
                 </div>
             </div>
         </div>
 
     </div>
 
-    <!-- ======== Results Audit Log ======== -->
-    <section class="results-section" id="results-section">
+    <!-- ======== Live Scanned Inbox Feed & Alerts ======== -->
+    <section class="results-section">
         <div class="results-header">
             <div>
-                <h2 class="section-headline">Scan Audit Trail</h2>
-                <p class="section-sub">Recent verdicts recorded in the asynchronous SQLite database.</p>
+                <h2 class="section-headline">Protected Inbox Scan Log</h2>
+                <p class="section-sub">Live feed of messages examined by the background scanner.</p>
             </div>
-            <button class="btn btn-secondary btn-sm" onclick="refreshResults()">
-                Refresh Table
-            </button>
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-secondary btn-sm" onclick="sendTestAlert()">
+                    Simulate Phishing Email
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="refreshResults()">
+                    Refresh Log
+                </button>
+            </div>
         </div>
+
         <div class="surface-card table-card">
             <div class="table-scroll">
                 <table class="audit-table" id="resultsTable">
                     <thead>
                         <tr>
-                            <th>Timestamp</th>
+                            <th>Scan Time</th>
                             <th>Sender</th>
                             <th>Subject</th>
-                            <th>Status</th>
+                            <th>Defense Verdict</th>
                             <th>Threat Score</th>
                             <th>Confidence</th>
-                            <th>Source</th>
+                            <th>Action Taken</th>
                         </tr>
                     </thead>
                     <tbody id="resultsBody">
@@ -325,7 +266,7 @@
                 </table>
             </div>
             <div class="empty-state" id="emptyState">
-                <p>No messages analyzed yet. Submit text or upload an EML file to record results.</p>
+                <p>No mailbox messages scanned yet. Connect your email above to begin real-time protection.</p>
             </div>
         </div>
     </section>
@@ -341,26 +282,25 @@
                     <span class="footer-brand-name">PhishGuard</span>
                 </div>
                 <p class="footer-desc">
-                    Defensive security software for automated email verification and threat mitigation.
+                    Autonomous mailbox defense. Incoming messages are evaluated across calibrated machine learning, header authentication, and structural heuristics.
                 </p>
             </div>
             <div class="footer-links">
                 <div class="footer-col">
                     <span class="footer-col-title">Documentation</span>
-                    <a href="/docs" target="_blank">Swagger OpenAPI</a>
-                    <a href="/redoc" target="_blank">ReDoc Specification</a>
+                    <a href="/docs" target="_blank">Swagger API</a>
+                    <a href="/health" target="_blank">Health Status</a>
                     <a href="https://github.com/hackergovind/phishing-analyzer" target="_blank">GitHub Repository</a>
                 </div>
                 <div class="footer-col">
-                    <span class="footer-col-title">Verification</span>
-                    <a href="/health">Health Endpoint</a>
-                    <a href="/api/stats">Aggregate Statistics</a>
-                    <a href="/api/results">Recent Results</a>
+                    <span class="footer-col-title">Security Settings</span>
+                    <a href="https://myaccount.google.com/apppasswords" target="_blank">Google App Passwords ↗</a>
+                    <a href="https://support.microsoft.com" target="_blank">Outlook IMAP Guidance ↗</a>
                 </div>
             </div>
         </div>
         <div class="footer-bottom">
-            <span>&copy; 2026 PhishGuard AI. Built for defensive security teams.</span>
+            <span>&copy; 2026 PhishGuard AI. Real-time mailbox threat protection and awareness.</span>
         </div>
     </footer>
 

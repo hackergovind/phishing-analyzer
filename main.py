@@ -202,6 +202,7 @@ async def api_stats():
 # Mail Scanner Endpoints
 # ---------------------------------------------------------------------------
 @app.post("/api/mail/connect", summary="Start IMAP mail scanning")
+@app.post("/scanner/start", include_in_schema=False)
 async def mail_connect(config: MailConnectRequest):
     """Configure and start the background IMAP scanner."""
     try:
@@ -223,6 +224,7 @@ async def mail_connect(config: MailConnectRequest):
 
 
 @app.post("/api/mail/disconnect", summary="Stop IMAP mail scanning")
+@app.post("/scanner/stop", include_in_schema=False)
 async def mail_disconnect():
     """Stop the background mail scanner."""
     await scanner.stop()
@@ -230,9 +232,61 @@ async def mail_disconnect():
 
 
 @app.get("/api/mail/status", summary="Get scanner status")
+@app.get("/scanner/status", include_in_schema=False)
 async def mail_status():
     """Returns the current status of the IMAP scanner."""
     return scanner.status()
+
+
+@app.post("/api/mail/test-alert", summary="Simulate a phishing detection alert")
+async def mail_test_alert():
+    """Generates a realistic phishing alert for desktop notification testing."""
+    test_sender = "security-update@paypa1.com.verify-access.xyz"
+    test_subject = "URGENT: Unauthorized access detected from unrecognized location"
+    test_score = 78.5
+    test_verdict = {
+        "status": "Phishing",
+        "threat_score": test_score,
+        "confidence": 0.92,
+        "action": "Quarantined — Moved from INBOX to Quarantine",
+        "breakdown": {
+            "ml_score": 32.0,
+            "heuristic_score": 26.5,
+            "header_auth": 0.0,
+            "url_risk": 20.0,
+            "whitelist_offset": 0.0,
+        },
+        "evidence": [
+            {"source": "heuristics", "detail": "Urgency phrase: 'unauthorized access detected'", "contribution": 10.0},
+            {"source": "url_risk", "detail": "Subdomain typosquatting: 'paypa1.com' mimicking PayPal", "contribution": 16.5},
+            {"source": "ml_ensemble", "detail": "Ensemble classifier detected phishing patterns (prob: 96.4%)", "contribution": 32.0}
+        ]
+    }
+    
+    await save_result(
+        sender=test_sender,
+        subject=test_subject,
+        status=test_verdict["status"],
+        threat_score=test_verdict["threat_score"],
+        confidence=test_verdict["confidence"],
+        action=test_verdict["action"],
+        evidence=test_verdict["evidence"],
+        breakdown=test_verdict["breakdown"],
+        body_preview="Dear user, unauthorized access detected on your account. Verify immediately.",
+        source="imap",
+    )
+    
+    return {
+        "status": "ok",
+        "message": "Test phishing alert dispatched",
+        "result": {
+            "sender": test_sender,
+            "subject": test_subject,
+            "status": "Phishing",
+            "threat_score": test_score,
+            "action": test_verdict["action"]
+        }
+    }
 
 
 # ---------------------------------------------------------------------------

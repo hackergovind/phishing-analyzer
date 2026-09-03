@@ -1,6 +1,7 @@
 /**
- * PhishGuard AI — Dashboard Application Logic
- * Editorial interface connecting to FastAPI endpoints.
+ * PhishGuard AI — Mailbox Defense & Push Notifications Engine
+ * Handles IMAP connection, desktop push alerts, audio warning chimes,
+ * and live protected inbox monitoring.
  */
 
 const API = '';
@@ -10,70 +11,33 @@ const API = '';
 // =========================================================================
 let threatChart = null;
 let allResults = [];
+let knownResultIds = new Set();
+let isInitialLoad = true;
 let pollingInterval = null;
-let selectedEmlFile = null;
-let currentResultData = null;
 
-// Presets data without hype
-const PRESETS = {
-    paypal: `Subject: URGENT: Verify your account information
-From: PayPal Support <security@paypal.com.verify-access.xyz>
-
-Dear Customer, 
-
-We detected unauthorized access to your account. Your access will be suspended within 24 hours unless you confirm your identity immediately.
-
-Confirm your account here: http://paypa1.com.malicious.top/secure/login?id=38294
-
-Failure to respond within 48 hours will result in permanent account closure.
-
-PayPal Support Team`,
-
-    microsoft: `Subject: SECURITY ALERT: Unusual activity detected
-From: Microsoft Team <account-alerts@acc0unt-verify.tk>
-
-Someone tried to sign in to your Microsoft account from an unrecognized IP address.
-
-Verify your identity: https://acc0unt-verify.tk/microsoft/login
-
-If you do not verify within 24 hours, your account will be disabled.
-
-Microsoft Security Team`,
-
-    dropbox: `Subject: Password expiration notice
-From: Dropbox Notice <support@dr0pbox-secure.xyz>
-
-Your Dropbox password expires today. Click below to update your password and maintain access to shared folders.
-
-https://dr0pbox-secure.xyz/password-reset
-
-If you did not request this update, ignore this notification.
-
-Dropbox Support`,
-
-    safe: `Subject: Q3 Engineering Sync and Roadmap Review
-From: Jordan Miller <jordan.miller@company.org>
-
-Hi Alex,
-
-The engineering review has been moved to Thursday at 2:00 PM. The slides and preliminary roadmap are attached in the shared drive.
-
-Let me know if you have questions before our sync.
-
-Thanks,
-Jordan`,
-
-    nigerian: `Subject: Estate Distribution Fund Notice ($15,000,000 USD)
-From: Dr. James Okonkwo <barrister.james@attorney-lagos.biz>
-
-Dear Sir/Madam,
-
-My late client left an estate valued at $15,000,000 USD without an appointed beneficiary. Because you share the same surname, I am reaching out to facilitate the legal transfer of these funds.
-
-Please remit a $500 transfer filing fee to proceed and supply your primary bank account details. Keep this communication strictly confidential.
-
-Regards,
-Dr. James Okonkwo`
+// Provider Configurations
+const PROVIDERS = {
+    gmail: {
+        host: 'imap.gmail.com',
+        port: 993,
+        showHelp: true,
+        helpText: 'Gmail requires a 16-character App Password. Normal account passwords are rejected.'
+    },
+    outlook: {
+        host: 'outlook.office365.com',
+        port: 993,
+        showHelp: false
+    },
+    yahoo: {
+        host: 'imap.mail.yahoo.com',
+        port: 993,
+        showHelp: false
+    },
+    custom: {
+        host: '',
+        port: 993,
+        showHelp: false
+    }
 };
 
 // =========================================================================
@@ -81,11 +45,11 @@ Dr. James Okonkwo`
 // =========================================================================
 document.addEventListener('DOMContentLoaded', () => {
     initChart();
+    updateNotificationButtonUI();
     refreshStats();
     refreshResults();
     checkScannerStatus();
     startPolling();
-    initDropZone();
 });
 
 function startPolling() {
@@ -93,204 +57,347 @@ function startPolling() {
         refreshStats();
         refreshResults();
         checkScannerStatus();
-    }, 15000);
+    }, 10000);
 }
 
 // =========================================================================
-// Tab Navigation
+// Push Notification System (Desktop & Browser)
 // =========================================================================
-function switchTab(tab) {
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+function updateNotificationButtonUI() {
+    const btn = document.getElementById('notifStatusBtn');
+    const grantBtn = document.getElementById('grantNotifBtn');
+    const text = document.getElementById('notifBtnText');
+    const statusText = document.getElementById('notifCardStatusText');
 
-    if (tab === 'text') {
-        document.getElementById('tabBtnText').classList.add('active');
-        document.getElementById('paneText').classList.add('active');
-    } else if (tab === 'file') {
-        document.getElementById('tabBtnFile').classList.add('active');
-        document.getElementById('paneFile').classList.add('active');
-    } else if (tab === 'train') {
-        document.getElementById('tabBtnTrain').classList.add('active');
-        document.getElementById('paneTrain').classList.add('active');
-    }
-}
-
-// =========================================================================
-// Presets
-// =========================================================================
-function loadPreset(key) {
-    switchTab('text');
-    const input = document.getElementById('analyzeInput');
-    if (PRESETS[key]) {
-        input.value = PRESETS[key];
-        showToast(`Preset loaded: ${key.charAt(0).toUpperCase() + key.slice(1)}`, 'info');
-    }
-}
-
-// =========================================================================
-// Drag & Drop EML File Handler
-// =========================================================================
-function initDropZone() {
-    const dropZone = document.getElementById('dropZone');
-    if (!dropZone) return;
-
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, preventDefaults, false);
-    });
-
-    function preventDefaults(e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-
-    ['dragenter', 'dragover'].forEach(eventName => {
-        dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
-    });
-
-    ['dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
-    });
-
-    dropZone.addEventListener('drop', (e) => {
-        const dt = e.dataTransfer;
-        const files = dt.files;
-        if (files.length > 0) {
-            setEmlFile(files[0]);
-        }
-    });
-}
-
-function handleFileSelect(event) {
-    const files = event.target.files;
-    if (files.length > 0) {
-        setEmlFile(files[0]);
-    }
-}
-
-function setEmlFile(file) {
-    if (!file.name.toLowerCase().endsWith('.eml')) {
-        showToast('Please select a valid .eml file.', 'error');
-        return;
-    }
-    selectedEmlFile = file;
-    const badge = document.getElementById('selectedFileName');
-    badge.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
-    badge.style.display = 'inline-block';
-    document.getElementById('analyzeFileBtn').disabled = false;
-    showToast(`Loaded ${file.name}`, 'info');
-}
-
-function clearFileUpload() {
-    selectedEmlFile = null;
-    const input = document.getElementById('emlFileInput');
-    if (input) input.value = '';
-    const badge = document.getElementById('selectedFileName');
-    if (badge) badge.style.display = 'none';
-    const btn = document.getElementById('analyzeFileBtn');
-    if (btn) btn.disabled = true;
-    document.getElementById('inlineResult').classList.remove('visible');
-}
-
-async function uploadEmlFile() {
-    if (!selectedEmlFile) {
-        showToast('Please select an .eml file first.', 'error');
+    if (!('Notification' in window)) {
+        if (text) text.textContent = 'Push Unsupported';
+        if (btn) btn.disabled = true;
+        if (grantBtn) grantBtn.disabled = true;
+        if (statusText) statusText.textContent = 'This browser does not support HTML5 desktop notifications.';
         return;
     }
 
-    const btn = document.getElementById('analyzeFileBtn');
-    btn.disabled = true;
-    btn.textContent = 'Analyzing EML…';
-
-    try {
-        const formData = new FormData();
-        formData.append('file', selectedEmlFile);
-
-        const res = await fetch(`${API}/analyze`, { method: 'POST', body: formData });
-        if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-        const data = await res.json();
-
-        showInlineResult(data);
-        showToast(`Analysis complete: ${data.status}`, data.status === 'Safe' ? 'success' : 'error');
-        refreshStats();
-        refreshResults();
-    } catch (e) {
-        showToast('EML analysis failed: ' + e.message, 'error');
-    } finally {
-        btn.disabled = false;
-        btn.textContent = 'Analyze EML File';
+    if (Notification.permission === 'granted') {
+        if (text) text.textContent = 'Push Alerts Active';
+        if (btn) {
+            btn.classList.remove('btn-secondary');
+            btn.classList.add('btn-primary');
+        }
+        if (grantBtn) {
+            grantBtn.textContent = '✓ Alerts Enabled';
+            grantBtn.disabled = true;
+        }
+        if (statusText) {
+            statusText.textContent = 'Desktop push alerts are enabled. You will be alerted immediately if a phishing email is detected.';
+        }
+    } else if (Notification.permission === 'denied') {
+        if (text) text.textContent = 'Alerts Blocked';
+        if (btn) btn.disabled = false;
+        if (grantBtn) {
+            grantBtn.textContent = 'Unblock in Browser';
+            grantBtn.disabled = true;
+        }
+        if (statusText) {
+            statusText.textContent = 'Notifications are blocked in your browser settings. Please allow notifications for this site to receive alerts.';
+        }
+    } else {
+        if (text) text.textContent = 'Enable Push Alerts';
+        if (grantBtn) {
+            grantBtn.textContent = 'Allow Notifications';
+            grantBtn.disabled = false;
+        }
     }
 }
 
-// =========================================================================
-// Model Retraining
-// =========================================================================
-async function triggerTraining() {
-    const btn = document.getElementById('trainBtn');
-    const csvInput = document.getElementById('trainCsvInput');
-    const reportArea = document.getElementById('trainReportArea');
-    const reportContent = document.getElementById('trainReportContent');
-
-    btn.disabled = true;
-    btn.textContent = 'Training Ensemble Model…';
+async function requestNotificationPermission() {
+    if (!('Notification' in window)) {
+        showToast('Your browser does not support desktop notifications.', 'error');
+        return;
+    }
 
     try {
-        const formData = new FormData();
-        if (csvInput.files && csvInput.files.length > 0) {
-            formData.append('file', csvInput.files[0]);
-        }
-
-        const res = await fetch(`${API}/train`, { method: 'POST', body: formData });
-        const data = await res.json();
-
-        if (data.status === 'ok') {
-            reportArea.style.display = 'block';
-            reportContent.textContent = data.report || 'Model retrained successfully.';
-            showToast('Model training completed.', 'success');
+        const permission = await Notification.requestPermission();
+        updateNotificationButtonUI();
+        if (permission === 'granted') {
+            showToast('Desktop push notifications enabled!', 'success');
+            playAlertSound(false);
+            new Notification('🛡️ PhishGuard Protection Enabled', {
+                body: 'You will receive real-time alerts whenever a phishing threat is detected in your mailbox.',
+                tag: 'phishguard-welcome'
+            });
         } else {
-            showToast('Training failed: ' + (data.detail || 'Unknown error'), 'error');
+            showToast('Notification permission was not granted.', 'error');
         }
     } catch (e) {
-        showToast('Training error: ' + e.message, 'error');
-    } finally {
-        btn.disabled = false;
-        btn.textContent = 'Retrain Classifier';
+        console.error('Notification error:', e);
+    }
+}
+
+// Audio Chime (Synthetic Web Audio API — 100% offline & zero external assets)
+function playAlertSound(isUrgent = true) {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        if (isUrgent) {
+            // Urgent double-beep alert for phishing
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(880, ctx.currentTime);
+            osc.frequency.setValueAtTime(660, ctx.currentTime + 0.12);
+            osc.frequency.setValueAtTime(880, ctx.currentTime + 0.24);
+
+            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.45);
+
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.45);
+        } else {
+            // Gentle confirmation chime
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+            osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1);
+
+            gain.gain.setValueAtTime(0.2, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.3);
+        }
+    } catch (err) {
+        console.warn('Audio playback not permitted or unavailable:', err);
+    }
+}
+
+// Dispatch Push Alert for Phishing
+function triggerPhishingAlert(result) {
+    playAlertSound(true);
+
+    // 1. Native Desktop Push Notification
+    if ('Notification' in window && Notification.permission === 'granted') {
+        const title = result.status === 'Phishing'
+            ? '⚠️ PHISHING EMAIL QUARANTINED'
+            : '⚠️ SUSPICIOUS EMAIL FLAGGED';
+
+        const body = `Sender: ${result.sender || 'Unknown'}\nSubject: ${result.subject || '(no subject)'}\nThreat Score: ${result.threat_score.toFixed(1)}/100\nAction: ${result.action}`;
+
+        const notif = new Notification(title, {
+            body: body,
+            tag: `phish-${Date.now()}`,
+            requireInteraction: true
+        });
+
+        notif.onclick = () => {
+            window.focus();
+            showUrgentAlertModal(result);
+            notif.close();
+        };
+    }
+
+    // 2. In-App Urgent Modal Alert
+    showUrgentAlertModal(result);
+}
+
+function showUrgentAlertModal(result) {
+    const modal = document.getElementById('urgentAlertModal');
+    const details = document.getElementById('alertModalDetails');
+
+    details.innerHTML = `
+        <div class="alert-item"><strong>Sender:</strong> ${escapeHtml(result.sender || '—')}</div>
+        <div class="alert-item"><strong>Subject:</strong> ${escapeHtml(result.subject || '(no subject)')}</div>
+        <div class="alert-item"><strong>Threat Score:</strong> <span style="color:var(--status-phishing); font-weight:700;">${result.threat_score.toFixed(1)} / 100</span></div>
+        <div class="alert-item"><strong>Status:</strong> ${result.status}</div>
+        <div class="alert-item"><strong>Protection Action:</strong> ${escapeHtml(result.action)}</div>
+    `;
+
+    modal.classList.add('visible');
+}
+
+function closeUrgentAlert() {
+    document.getElementById('urgentAlertModal').classList.remove('visible');
+}
+
+// Test Alert Simulation
+async function sendTestAlert() {
+    showToast('Sending simulated phishing alert…', 'info');
+    try {
+        const res = await fetch(`${API}/api/mail/test-alert`, { method: 'POST' });
+        const data = await res.json();
+        if (data.status === 'ok') {
+            triggerPhishingAlert(data.result);
+            refreshStats();
+            refreshResults();
+            showToast('Simulated alert dispatched!', 'success');
+        } else {
+            showToast('Failed to simulate alert: ' + (data.detail || 'Unknown error'), 'error');
+        }
+    } catch (e) {
+        showToast('Alert simulation error: ' + e.message, 'error');
     }
 }
 
 // =========================================================================
-// Copy Report
+// Provider Selection
 // =========================================================================
-function copyReport() {
-    if (!currentResultData) {
-        showToast('No active analysis to copy.', 'error');
+function selectProvider(name) {
+    document.querySelectorAll('.preset-chip').forEach(btn => btn.classList.remove('active'));
+
+    const prov = PROVIDERS[name] || PROVIDERS.custom;
+    const hostInput = document.getElementById('mailHost');
+    const portInput = document.getElementById('mailPort');
+    const helpBox = document.getElementById('gmailHelpBox');
+
+    if (hostInput && prov.host) hostInput.value = prov.host;
+    if (portInput) portInput.value = prov.port;
+
+    if (name === 'gmail') {
+        document.getElementById('provGmail')?.classList.add('active');
+        if (helpBox) helpBox.style.display = 'block';
+    } else if (name === 'outlook') {
+        document.getElementById('provOutlook')?.classList.add('active');
+        if (helpBox) helpBox.style.display = 'none';
+    } else if (name === 'yahoo') {
+        document.getElementById('provYahoo')?.classList.add('active');
+        if (helpBox) helpBox.style.display = 'none';
+    } else {
+        document.getElementById('provCustom')?.classList.add('active');
+        if (helpBox) helpBox.style.display = 'none';
+    }
+}
+
+// =========================================================================
+// Mailbox Connection
+// =========================================================================
+async function connectMail() {
+    const host = document.getElementById('mailHost').value.trim();
+    const port = parseInt(document.getElementById('mailPort').value) || 993;
+    const email = document.getElementById('mailEmail').value.trim();
+    const password = document.getElementById('mailPassword').value;
+    const folder = document.getElementById('mailFolder').value.trim() || 'INBOX';
+    const interval = parseInt(document.getElementById('mailInterval').value) || 30;
+    const feedback = document.getElementById('connectionFeedback');
+
+    if (!host || !email || !password) {
+        showToast('Please provide your email and app password.', 'error');
         return;
     }
-    const d = currentResultData;
-    let text = `=== PhishGuard Threat Analysis Report ===\n`;
-    text += `Verdict: ${d.status}\n`;
-    text += `Threat Score: ${d.threat_score.toFixed(1)} / 100\n`;
-    text += `Confidence Floor: ${(d.confidence * 100).toFixed(0)}%\n`;
-    text += `Action: ${d.action}\n\n`;
-    text += `Breakdown:\n`;
-    if (d.breakdown) {
-        for (const [k, v] of Object.entries(d.breakdown)) {
-            text += `  - ${k}: ${v > 0 ? '+' : ''}${v.toFixed(1)}\n`;
-        }
-    }
-    text += `\nEvidence Trail:\n`;
-    (d.evidence || []).forEach(e => {
-        text += `  [${e.source}] ${e.detail} (${e.contribution > 0 ? '+' : ''}${e.contribution.toFixed(1)})\n`;
-    });
 
-    navigator.clipboard.writeText(text).then(() => {
-        showToast('Report copied to clipboard.', 'success');
-    }).catch(err => {
-        showToast('Copy failed: ' + err, 'error');
-    });
+    const btn = document.getElementById('connectBtn');
+    btn.disabled = true;
+    btn.textContent = 'Verifying IMAP Credentials…';
+    feedback.style.display = 'none';
+
+    try {
+        const res = await fetch(`${API}/api/mail/connect`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                imap_host: host,
+                imap_port: port,
+                email: email,
+                password: password,
+                folder: folder,
+                poll_interval: interval,
+            })
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.status === 'ok') {
+            showToast('Mailbox connected. Protection is now active!', 'success');
+            updateScannerBadge(true);
+            feedback.className = 'connection-status-block success';
+            feedback.innerHTML = `<strong>Connected & Protected:</strong> Monitoring <code>${escapeHtml(email)}</code> (Folder: <code>${escapeHtml(folder)}</code>). Background checks run every ${interval}s.`;
+            feedback.style.display = 'block';
+            playAlertSound(false);
+        } else {
+            const errDetail = data.detail || 'Connection failed. Please check credentials.';
+            showToast(errDetail, 'error');
+            feedback.className = 'connection-status-block error';
+            feedback.innerHTML = `<strong>Connection Error:</strong> ${escapeHtml(errDetail)}`;
+            feedback.style.display = 'block';
+            updateScannerBadge(false);
+        }
+    } catch (e) {
+        showToast('Connection failed: ' + e.message, 'error');
+        updateScannerBadge(false);
+    } finally {
+        btn.textContent = 'Connect & Start Monitoring';
+        btn.disabled = false;
+    }
+}
+
+async function disconnectMail() {
+    const btn = document.getElementById('disconnectBtn');
+    const feedback = document.getElementById('connectionFeedback');
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API}/api/mail/disconnect`, { method: 'POST' });
+        const data = await res.json();
+        showToast(data.message || 'Mailbox disconnected.', 'info');
+        updateScannerBadge(false);
+        feedback.style.display = 'none';
+    } catch (e) {
+        showToast('Error stopping scanner: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function checkScannerStatus() {
+    try {
+        const res = await fetch(`${API}/api/mail/status`);
+        const data = await res.json();
+        updateScannerBadge(data.running, data.email);
+    } catch (e) {
+        updateScannerBadge(false);
+    }
+}
+
+function updateScannerBadge(running, email = '') {
+    const badge = document.getElementById('scannerBadge');
+    const text = document.getElementById('scannerBadgeText');
+    const connectBtn = document.getElementById('connectBtn');
+    const disconnectBtn = document.getElementById('disconnectBtn');
+    const defensePill = document.getElementById('defensePill');
+    const policyDot = document.getElementById('policyDot');
+
+    if (running) {
+        badge.classList.add('active');
+        text.textContent = 'Active Protection';
+        if (defensePill) {
+            defensePill.textContent = 'Online & Protecting';
+            defensePill.style.color = 'var(--status-safe)';
+        }
+        if (policyDot) {
+            policyDot.textContent = 'Scanning Live';
+        }
+        if (connectBtn) connectBtn.disabled = true;
+        if (disconnectBtn) disconnectBtn.disabled = false;
+    } else {
+        badge.classList.remove('active');
+        text.textContent = 'Scanner Offline';
+        if (defensePill) {
+            defensePill.textContent = 'Standby';
+            defensePill.style.color = 'var(--muted)';
+        }
+        if (policyDot) {
+            policyDot.textContent = 'Standby';
+        }
+        if (connectBtn) connectBtn.disabled = false;
+        if (disconnectBtn) disconnectBtn.disabled = true;
+    }
 }
 
 // =========================================================================
-// Stats
+// Stats & Chart
 // =========================================================================
 async function refreshStats() {
     try {
@@ -306,9 +413,6 @@ async function refreshStats() {
     }
 }
 
-// =========================================================================
-// Chart.js (Warm Editorial Dark Theme)
-// =========================================================================
 function initChart() {
     const canvas = document.getElementById('threatChart');
     if (!canvas) return;
@@ -317,14 +421,10 @@ function initChart() {
     threatChart = new Chart(ctx, {
         type: 'doughnut',
         data: {
-            labels: ['Safe', 'Suspicious', 'Phishing'],
+            labels: ['Clean Delivered', 'Suspicious Flagged', 'Phishing Quarantined'],
             datasets: [{
                 data: [0, 0, 0],
-                backgroundColor: [
-                    '#5db872',
-                    '#d4a017',
-                    '#c64545'
-                ],
+                backgroundColor: ['#5db872', '#d4a017', '#c64545'],
                 borderColor: '#181715',
                 borderWidth: 2,
                 hoverOffset: 6,
@@ -372,192 +472,29 @@ function updateChart(stats) {
 }
 
 // =========================================================================
-// Text Analysis
-// =========================================================================
-async function analyzeText() {
-    const input = document.getElementById('analyzeInput');
-    const btn = document.getElementById('analyzeBtn');
-    const text = input.value.trim();
-
-    if (!text) {
-        showToast('Paste email content before analyzing.', 'error');
-        return;
-    }
-
-    btn.disabled = true;
-    btn.textContent = 'Analyzing Message…';
-
-    try {
-        const formData = new FormData();
-        formData.append('text', text);
-
-        const res = await fetch(`${API}/analyze/text`, { method: 'POST', body: formData });
-        const data = await res.json();
-
-        showInlineResult(data);
-        showToast(`Analysis complete: ${data.status}`, data.status === 'Safe' ? 'success' : 'error');
-        refreshStats();
-        refreshResults();
-    } catch (e) {
-        showToast('Analysis error: ' + e.message, 'error');
-    } finally {
-        btn.disabled = false;
-        btn.textContent = 'Analyze Message';
-    }
-}
-
-function showInlineResult(data) {
-    currentResultData = data;
-    const container = document.getElementById('inlineResult');
-    container.classList.add('visible');
-
-    const statusPill = document.getElementById('inlineStatus');
-    statusPill.textContent = data.status;
-    statusPill.className = 'status-pill ' + data.status.toLowerCase();
-
-    const score = document.getElementById('inlineScore');
-    score.textContent = data.threat_score.toFixed(1);
-    score.style.color = getScoreColor(data.threat_score);
-
-    document.getElementById('inlineAction').textContent = data.action;
-    document.getElementById('inlineConfidence').textContent = (data.confidence * 100).toFixed(0) + '%';
-
-    // Breakdown Chips
-    const breakdownChips = document.getElementById('breakdownChips');
-    if (breakdownChips && data.breakdown) {
-        breakdownChips.innerHTML = '';
-        for (const [key, val] of Object.entries(data.breakdown)) {
-            const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-            const color = val > 0 ? 'var(--status-phishing)' : val < 0 ? 'var(--status-safe)' : 'var(--muted)';
-            const chip = document.createElement('div');
-            chip.className = 'breakdown-chip';
-            chip.innerHTML = `<span class="breakdown-chip-title">${escapeHtml(label)}</span><span class="breakdown-chip-val" style="color:${color}">${val > 0 ? '+' : ''}${val.toFixed(1)}</span>`;
-            breakdownChips.appendChild(chip);
-        }
-    }
-
-    // Evidence List
-    const evidenceList = document.getElementById('inlineEvidence');
-    evidenceList.innerHTML = '';
-    (data.evidence || []).forEach(ev => {
-        const li = document.createElement('li');
-        const color = ev.contribution > 0 ? 'var(--status-phishing)' : 'var(--status-safe)';
-        li.innerHTML = `<strong>${escapeHtml(ev.source)}</strong>: ${escapeHtml(ev.detail)} <span style="color:${color}; float:right; font-weight:600;">${ev.contribution > 0 ? '+' : ''}${ev.contribution.toFixed(1)}</span>`;
-        evidenceList.appendChild(li);
-    });
-}
-
-function clearAnalysis() {
-    document.getElementById('analyzeInput').value = '';
-    document.getElementById('inlineResult').classList.remove('visible');
-}
-
-function getScoreColor(score) {
-    if (score >= 60) return '#c64545';
-    if (score >= 35) return '#d4a017';
-    return '#5db872';
-}
-
-// =========================================================================
-// IMAP Scanner Controls
-// =========================================================================
-async function checkScannerStatus() {
-    try {
-        const res = await fetch(`${API}/scanner/status`);
-        const data = await res.json();
-        updateScannerBadge(data.running);
-    } catch (e) {
-        updateScannerBadge(false);
-    }
-}
-
-function updateScannerBadge(running) {
-    const badge = document.getElementById('scannerBadge');
-    const text = document.getElementById('scannerBadgeText');
-    const connectBtn = document.getElementById('connectBtn');
-    const disconnectBtn = document.getElementById('disconnectBtn');
-
-    if (running) {
-        badge.classList.add('active');
-        text.textContent = 'Scanner Active';
-        if (connectBtn) connectBtn.disabled = true;
-        if (disconnectBtn) disconnectBtn.disabled = false;
-    } else {
-        badge.classList.remove('active');
-        text.textContent = 'Scanner Offline';
-        if (connectBtn) connectBtn.disabled = false;
-        if (disconnectBtn) disconnectBtn.disabled = true;
-    }
-}
-
-async function connectMail() {
-    const host = document.getElementById('mailHost').value.trim();
-    const port = parseInt(document.getElementById('mailPort').value) || 993;
-    const email = document.getElementById('mailEmail').value.trim();
-    const password = document.getElementById('mailPassword').value;
-    const folder = document.getElementById('mailFolder').value.trim() || 'INBOX';
-    const interval = parseInt(document.getElementById('mailInterval').value) || 30;
-
-    if (!host || !email || !password) {
-        showToast('Please provide host, email, and app password.', 'error');
-        return;
-    }
-
-    const btn = document.getElementById('connectBtn');
-    btn.disabled = true;
-    btn.textContent = 'Connecting…';
-
-    try {
-        const res = await fetch(`${API}/scanner/start`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                host, port, email, password, folder,
-                poll_interval: interval,
-                quarantine_folder: 'Quarantine'
-            })
-        });
-        const data = await res.json();
-
-        if (res.ok) {
-            showToast('Mailbox scanner started.', 'success');
-            updateScannerBadge(true);
-        } else {
-            showToast('Connection failed: ' + (data.detail || 'Unknown error'), 'error');
-            updateScannerBadge(false);
-        }
-    } catch (e) {
-        showToast('Connection error: ' + e.message, 'error');
-        updateScannerBadge(false);
-    } finally {
-        btn.textContent = 'Connect & Start Monitoring';
-        btn.disabled = false;
-    }
-}
-
-async function disconnectMail() {
-    const btn = document.getElementById('disconnectBtn');
-    btn.disabled = true;
-
-    try {
-        const res = await fetch(`${API}/scanner/stop`, { method: 'POST' });
-        const data = await res.json();
-        showToast(data.message || 'Scanner stopped.', 'info');
-        updateScannerBadge(false);
-    } catch (e) {
-        showToast('Error stopping scanner: ' + e.message, 'error');
-    } finally {
-        btn.disabled = false;
-    }
-}
-
-// =========================================================================
-// Audit Trail Results
+// Audit Trail & New Threat Alert Detection
 // =========================================================================
 async function refreshResults() {
     try {
         const res = await fetch(`${API}/api/results?limit=50`);
-        allResults = await res.json();
+        const results = await res.json();
+
+        // Detect newly appeared threats to trigger push notifications
+        if (!isInitialLoad && results.length) {
+            for (const r of results) {
+                if (!knownResultIds.has(r.id)) {
+                    knownResultIds.add(r.id);
+                    if (r.status === 'Phishing' || r.status === 'Suspicious') {
+                        triggerPhishingAlert(r);
+                    }
+                }
+            }
+        } else {
+            results.forEach(r => knownResultIds.add(r.id));
+            isInitialLoad = false;
+        }
+
+        allResults = results;
         renderResults(allResults);
     } catch (e) {
         console.error('Results fetch error:', e);
@@ -579,20 +516,23 @@ function renderResults(results) {
         const time = formatTime(r.timestamp);
         const statusClass = r.status.toLowerCase();
         const scoreColor = getScoreColor(r.threat_score);
-        const sourceClass = r.source === 'imap' ? 'imap' : '';
 
         return `<tr onclick="showDetail(${idx})">
             <td>${time}</td>
             <td>${escapeHtml(r.sender || '—')}</td>
             <td>${escapeHtml(r.subject || '(no subject)')}</td>
             <td><span class="status-pill ${statusClass}">${r.status}</span></td>
-            <td>
-                <span class="score-inline" style="color:${scoreColor}">${r.threat_score.toFixed(1)}</span>
-            </td>
+            <td><span class="score-inline" style="color:${scoreColor}">${r.threat_score.toFixed(1)}</span></td>
             <td>${(r.confidence * 100).toFixed(0)}%</td>
-            <td><span class="source-badge ${sourceClass}">${r.source}</span></td>
+            <td><span class="action-badge">${escapeHtml(r.action)}</span></td>
         </tr>`;
     }).join('');
+}
+
+function getScoreColor(score) {
+    if (score >= 60) return '#c64545';
+    if (score >= 35) return '#d4a017';
+    return '#5db872';
 }
 
 // =========================================================================
@@ -606,16 +546,15 @@ function showDetail(idx) {
 
     let html = `
         <div class="detail-row"><span class="label">Sender</span><span>${escapeHtml(r.sender || '—')}</span></div>
-        <div class="detail-row"><span class="label">Status</span><span class="status-pill ${r.status.toLowerCase()}">${r.status}</span></div>
-        <div class="detail-row"><span class="label">Threat Score</span><span style="color:${getScoreColor(r.threat_score)};font-weight:600">${r.threat_score.toFixed(1)} / 100</span></div>
+        <div class="detail-row"><span class="label">Verdict</span><span class="status-pill ${r.status.toLowerCase()}">${r.status}</span></div>
+        <div class="detail-row"><span class="label">Threat Score</span><span style="color:${getScoreColor(r.threat_score)}; font-weight:700">${r.threat_score.toFixed(1)} / 100</span></div>
         <div class="detail-row"><span class="label">Confidence</span><span>${(r.confidence * 100).toFixed(0)}%</span></div>
-        <div class="detail-row"><span class="label">Action</span><span>${escapeHtml(r.action)}</span></div>
-        <div class="detail-row"><span class="label">Source</span><span class="source-badge ${r.source === 'imap' ? 'imap' : ''}">${r.source}</span></div>
-        <div class="detail-row"><span class="label">Time</span><span>${formatTime(r.timestamp)}</span></div>
+        <div class="detail-row"><span class="label">Action Taken</span><span>${escapeHtml(r.action)}</span></div>
+        <div class="detail-row"><span class="label">Timestamp</span><span>${formatTime(r.timestamp)}</span></div>
     `;
 
     if (r.breakdown) {
-        html += `<div style="margin-top:16px;"><span class="breakdown-title">Score Breakdown</span><div class="breakdown-chips">`;
+        html += `<div style="margin-top:16px;"><span class="breakdown-title">Signal Breakdown</span><div class="breakdown-chips">`;
         for (const [key, val] of Object.entries(r.breakdown)) {
             const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
             const color = val > 0 ? 'var(--status-phishing)' : val < 0 ? 'var(--status-safe)' : 'var(--muted)';
@@ -625,7 +564,7 @@ function showDetail(idx) {
     }
 
     if (r.evidence && r.evidence.length) {
-        html += `<div style="margin-top:16px;"><span class="breakdown-title">Evidence Trail</span><ul class="evidence-list" style="margin-top:8px;">`;
+        html += `<div style="margin-top:16px;"><span class="breakdown-title">Identified Evidence Trail</span><ul class="evidence-list" style="margin-top:8px;">`;
         r.evidence.forEach(ev => {
             const color = ev.contribution > 0 ? 'var(--status-phishing)' : 'var(--status-safe)';
             html += `<li><strong>${escapeHtml(ev.source)}</strong>: ${escapeHtml(ev.detail)} <span style="color:${color}; float:right; font-weight:600;">${ev.contribution > 0 ? '+' : ''}${ev.contribution.toFixed(1)}</span></li>`;
@@ -634,7 +573,7 @@ function showDetail(idx) {
     }
 
     if (r.body_preview) {
-        html += `<div style="margin-top:16px;"><span class="breakdown-title">Message Body Preview</span><pre class="text-input" style="white-space:pre-wrap; font-family:var(--font-mono); font-size:12px; margin-top:6px; max-height:160px; overflow-y:auto;">${escapeHtml(r.body_preview)}</pre></div>`;
+        html += `<div style="margin-top:16px;"><span class="breakdown-title">Email Body Preview</span><pre class="text-input" style="white-space:pre-wrap; font-family:var(--font-mono); font-size:12px; margin-top:6px; max-height:160px; overflow-y:auto;">${escapeHtml(r.body_preview)}</pre></div>`;
     }
 
     document.getElementById('modalBody').innerHTML = html;
@@ -645,16 +584,19 @@ function closeModal() {
     document.getElementById('detailModal').classList.remove('visible');
 }
 
-document.getElementById('detailModal').addEventListener('click', (e) => {
+document.getElementById('detailModal')?.addEventListener('click', (e) => {
     if (e.target === document.getElementById('detailModal')) closeModal();
 });
 
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeModal();
+    if (e.key === 'Escape') {
+        closeModal();
+        closeUrgentAlert();
+    }
 });
 
 // =========================================================================
-// Toast Notification System
+// Toast Notification
 // =========================================================================
 function showToast(message, type = 'info') {
     const container = document.getElementById('toastContainer');

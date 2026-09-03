@@ -1,6 +1,6 @@
 /* ========================================================================
-   PhishGuard AI Design System
-   Warm-canvas editorial design derived from DESIGN.md
+   PhishGuard AI — Mailbox Defense & Push Alerts Design System
+   Conforming to DESIGN.md editorial specifications
    ======================================================================== */
 
 :root {
@@ -85,7 +85,7 @@ body {
 }
 
 .page-wrapper {
-    max-width: 1240px;
+    max-width: 1200px;
     margin: 0 auto;
     padding: 0 24px 80px;
 }
@@ -99,19 +99,19 @@ body {
     justify-content: space-between;
     height: 64px;
     border-bottom: 1px solid var(--hairline);
-    margin-bottom: 40px;
+    margin-bottom: 32px;
 }
 
 .nav-left {
     display: flex;
     align-items: center;
-    gap: 36px;
+    gap: 24px;
 }
 
 .brand-cluster {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     color: var(--ink);
 }
 
@@ -122,7 +122,7 @@ body {
 .brand-name {
     font-family: var(--font-sans);
     font-weight: 600;
-    font-size: 17px;
+    font-size: 18px;
     letter-spacing: -0.01em;
     color: var(--ink);
 }
@@ -132,33 +132,15 @@ body {
     font-weight: 500;
     color: var(--muted);
     background: var(--surface-card);
-    padding: 2px 6px;
+    padding: 2px 8px;
     border-radius: var(--rounded-xs);
     border: 1px solid var(--hairline);
-}
-
-.nav-links {
-    display: flex;
-    align-items: center;
-    gap: 24px;
-}
-
-.nav-link {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--muted);
-    text-decoration: none;
-    transition: var(--transition);
-}
-
-.nav-link:hover {
-    color: var(--ink);
 }
 
 .nav-right {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
 }
 
 .scanner-status-pill {
@@ -168,16 +150,17 @@ body {
     font-size: 12px;
     font-weight: 500;
     color: var(--muted);
-    padding: 4px 10px;
+    padding: 5px 12px;
     border-radius: var(--rounded-pill);
     background: var(--surface-soft);
     border: 1px solid var(--hairline);
+    transition: var(--transition);
 }
 
 .scanner-status-pill.active {
     color: var(--status-safe);
     background: var(--status-safe-bg);
-    border-color: rgba(93, 184, 114, 0.25);
+    border-color: rgba(93, 184, 114, 0.3);
 }
 
 .status-dot {
@@ -189,14 +172,14 @@ body {
 
 .scanner-status-pill.active .status-dot {
     background: var(--status-safe);
-    box-shadow: 0 0 6px rgba(93, 184, 114, 0.5);
+    box-shadow: 0 0 8px rgba(93, 184, 114, 0.6);
 }
 
 /* ========================================================================
    Hero Band
    ======================================================================== */
 .hero-band {
-    padding: 24px 0 48px;
+    padding: 20px 0 36px;
 }
 
 .hero-content {
@@ -218,9 +201,9 @@ body {
 
 .hero-title {
     font-family: var(--font-display);
-    font-size: 48px;
+    font-size: 46px;
     font-weight: 400;
-    line-height: 1.1;
+    line-height: 1.12;
     letter-spacing: -1.2px;
     color: var(--ink);
     margin-bottom: 16px;
@@ -230,7 +213,62 @@ body {
     font-size: 16px;
     line-height: 1.6;
     color: var(--muted);
-    max-width: 700px;
+    max-width: 720px;
+}
+
+/* ========================================================================
+   Push Notification Card Banner
+   ======================================================================== */
+.notif-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--surface-card);
+    border: 1px solid var(--hairline);
+    border-left: 4px solid var(--primary);
+    border-radius: var(--rounded-lg);
+    padding: 18px 24px;
+    margin-bottom: 32px;
+    gap: 20px;
+}
+
+.notif-card-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.notif-icon-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(204, 120, 92, 0.12);
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.notif-card-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 3px;
+}
+
+.notif-card-sub {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.4;
+}
+
+.notif-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
 }
 
 /* ========================================================================
@@ -240,47 +278,39 @@ body {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 16px;
-    margin-bottom: 40px;
+    margin-bottom: 36px;
 }
 
 .stat-card {
     background: var(--surface-card);
     border: 1px solid var(--hairline);
     border-radius: var(--rounded-lg);
-    padding: 24px 20px;
+    padding: 22px 20px;
     display: flex;
     flex-direction: column;
 }
 
 .stat-label {
-    font-size: 12px;
-    font-weight: 500;
+    font-size: 11px;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
     color: var(--muted);
     margin-bottom: 6px;
 }
 
 .stat-value {
     font-family: var(--font-display);
-    font-size: 40px;
+    font-size: 38px;
     font-weight: 400;
     line-height: 1.1;
     color: var(--ink);
     margin-bottom: 4px;
 }
 
-.stat-safe-val {
-    color: var(--status-safe);
-}
-
-.stat-suspicious-val {
-    color: var(--status-suspicious);
-}
-
-.stat-phishing-val {
-    color: var(--status-phishing);
-}
+.stat-safe-val { color: var(--status-safe); }
+.stat-suspicious-val { color: var(--status-suspicious); }
+.stat-phishing-val { color: var(--status-phishing); }
 
 .stat-sub {
     font-size: 12px;
@@ -288,22 +318,15 @@ body {
 }
 
 /* ========================================================================
-   Main Grid Layout
+   Main Grid
    ======================================================================== */
 .main-grid {
     display: grid;
-    grid-template-columns: 1.2fr 0.8fr;
+    grid-template-columns: 1.15fr 0.85fr;
     gap: 24px;
-    margin-bottom: 48px;
+    margin-bottom: 44px;
 }
 
-.full-span {
-    grid-column: 1 / -1;
-}
-
-/* ========================================================================
-   Surface Cards (Cream & Dark Rhythm)
-   ======================================================================== */
 .surface-card {
     background: var(--surface-card);
     border: 1px solid var(--hairline);
@@ -364,7 +387,7 @@ body {
     font-family: var(--font-mono);
     font-size: 11px;
     background: var(--surface-dark-elevated);
-    color: var(--primary);
+    color: var(--accent-teal);
     padding: 3px 8px;
     border-radius: var(--rounded-xs);
     border: 1px solid var(--hairline-dark);
@@ -384,65 +407,14 @@ body {
     color: var(--muted);
 }
 
-.section-desc {
-    font-size: 14px;
-    color: var(--body);
-    line-height: 1.6;
-    margin-bottom: 16px;
-}
-
 /* ========================================================================
-   Tabs Navigation
-   ======================================================================== */
-.tabs-nav {
-    display: flex;
-    gap: 4px;
-    background: var(--surface-soft);
-    padding: 4px;
-    border-radius: var(--rounded-md);
-    border: 1px solid var(--hairline);
-}
-
-.tab-btn {
-    background: transparent;
-    border: none;
-    color: var(--muted);
-    font-family: var(--font-sans);
-    font-size: 13px;
-    font-weight: 500;
-    padding: 7px 14px;
-    border-radius: var(--rounded-sm);
-    cursor: pointer;
-    transition: var(--transition);
-}
-
-.tab-btn:hover {
-    color: var(--ink);
-}
-
-.tab-btn.active {
-    background: var(--canvas);
-    color: var(--ink);
-    box-shadow: 0 1px 3px rgba(20, 20, 19, 0.05);
-}
-
-.tab-pane {
-    display: none;
-}
-
-.tab-pane.active {
-    display: block;
-}
-
-/* ========================================================================
-   Presets Bar
+   Presets & Helper Box
    ======================================================================== */
 .presets-bar {
     display: flex;
     align-items: center;
     gap: 6px;
     flex-wrap: wrap;
-    margin-bottom: 14px;
 }
 
 .presets-label {
@@ -461,7 +433,7 @@ body {
     font-family: var(--font-sans);
     font-size: 12px;
     font-weight: 500;
-    padding: 4px 10px;
+    padding: 5px 12px;
     border-radius: var(--rounded-pill);
     cursor: pointer;
     transition: var(--transition);
@@ -472,9 +444,57 @@ body {
     color: var(--primary);
 }
 
+.preset-chip.active {
+    background: var(--surface-cream-strong);
+    border-color: var(--primary);
+    color: var(--primary-active);
+    font-weight: 600;
+}
+
+.helper-box {
+    background: var(--surface-soft);
+    border: 1px solid var(--hairline);
+    border-radius: var(--rounded-md);
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--body);
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+.helper-link {
+    display: inline-block;
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+    margin-left: 6px;
+}
+
+.helper-link:hover {
+    text-decoration: underline;
+}
+
 /* ========================================================================
-   Inputs & Buttons (Anthropic Coral & Cream)
+   Forms & Inputs
    ======================================================================== */
+.form-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.form-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+}
+
 .text-input {
     width: 100%;
     background: var(--canvas);
@@ -493,19 +513,10 @@ body {
     box-shadow: 0 0 0 3px rgba(204, 120, 92, 0.15);
 }
 
-.text-area {
-    min-height: 140px;
-    resize: vertical;
-    font-family: var(--font-mono);
-    font-size: 13px;
-    line-height: 1.6;
-}
-
 .btn-row {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-top: 14px;
 }
 
 .btn {
@@ -562,226 +573,34 @@ body {
     cursor: not-allowed;
 }
 
-/* ========================================================================
-   Drop Zone (EML File Upload)
-   ======================================================================== */
-.drop-zone {
-    border: 2px dashed var(--hairline);
-    border-radius: var(--rounded-lg);
-    background: var(--canvas);
-    padding: 36px 20px;
-    text-align: center;
-    cursor: pointer;
-    transition: var(--transition);
-}
-
-.drop-zone:hover, .drop-zone.dragover {
-    border-color: var(--primary);
-    background: rgba(204, 120, 92, 0.04);
-}
-
-.drop-zone-icon {
-    color: var(--primary);
-    margin-bottom: 12px;
-}
-
-.drop-zone-title {
-    font-size: 15px;
-    font-weight: 500;
+.badge-pill {
+    background: var(--surface-cream-strong);
     color: var(--ink);
-    margin-bottom: 6px;
-}
-
-.drop-zone-sub {
-    font-size: 13px;
-    color: var(--muted);
-}
-
-.selected-file-badge {
-    display: inline-block;
-    margin-top: 12px;
-    padding: 4px 12px;
-    border-radius: var(--rounded-pill);
-    background: rgba(204, 120, 92, 0.12);
-    color: var(--primary-active);
-    font-size: 12px;
-    font-weight: 500;
-}
-
-/* ========================================================================
-   Result Box
-   ======================================================================== */
-.result-box {
-    display: none;
-    margin-top: 24px;
-    padding: 20px;
-    background: var(--canvas);
-    border: 1px solid var(--hairline);
-    border-radius: var(--rounded-md);
-    animation: fadeIn 0.2s ease;
-}
-
-.result-box.visible {
-    display: block;
-}
-
-.result-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 10px;
-}
-
-.result-verdict {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.status-pill {
-    display: inline-block;
-    padding: 4px 12px;
-    border-radius: var(--rounded-pill);
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-
-.status-pill.safe {
-    background: var(--status-safe-bg);
-    color: var(--status-safe);
-}
-
-.status-pill.suspicious {
-    background: var(--status-suspicious-bg);
-    color: var(--status-suspicious);
-}
-
-.status-pill.phishing {
-    background: var(--status-phishing-bg);
-    color: var(--status-phishing);
-}
-
-.result-action-text {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--body-strong);
-}
-
-.score-display {
-    display: flex;
-    align-items: baseline;
-    gap: 4px;
-}
-
-.score-number {
-    font-family: var(--font-display);
-    font-size: 32px;
-    font-weight: 400;
-    line-height: 1;
-}
-
-.score-scale {
-    font-size: 13px;
-    color: var(--muted-soft);
-}
-
-.result-meta {
-    font-size: 13px;
-    color: var(--muted);
-    margin-bottom: 14px;
-}
-
-.breakdown-wrap {
-    margin-bottom: 16px;
-}
-
-.breakdown-title {
     font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--muted-soft);
-    display: block;
-    margin-bottom: 6px;
-}
-
-.breakdown-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-}
-
-.breakdown-chip {
-    background: var(--surface-soft);
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: var(--rounded-pill);
     border: 1px solid var(--hairline);
-    padding: 4px 9px;
-    border-radius: var(--rounded-sm);
-    font-size: 12px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
 }
 
-.breakdown-chip-title {
-    color: var(--muted);
-}
-
-.breakdown-chip-val {
-    font-weight: 600;
-}
-
-.evidence-section {
-    border-top: 1px solid var(--hairline);
-    padding-top: 14px;
-}
-
-.evidence-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 10px;
-}
-
-.evidence-header h4 {
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--muted);
-}
-
-.btn-copy {
-    background: transparent;
-    border: 1px solid var(--hairline);
-    font-family: var(--font-sans);
-    font-size: 12px;
-    color: var(--body);
-    padding: 4px 10px;
-    border-radius: var(--rounded-sm);
-    cursor: pointer;
-    transition: var(--transition);
-}
-
-.btn-copy:hover {
-    border-color: var(--ink);
-}
-
-.evidence-list {
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.evidence-list li {
+.connection-status-block {
+    margin-top: 18px;
+    padding: 12px 16px;
+    border-radius: var(--rounded-md);
     font-size: 13px;
-    background: var(--surface-soft);
     border: 1px solid var(--hairline);
-    border-radius: var(--rounded-sm);
-    padding: 7px 12px;
-    color: var(--body);
+}
+
+.connection-status-block.success {
+    background: var(--status-safe-bg);
+    border-color: rgba(93, 184, 114, 0.3);
+    color: #2b753e;
+}
+
+.connection-status-block.error {
+    background: var(--status-phishing-bg);
+    border-color: rgba(198, 69, 69, 0.3);
+    color: var(--status-phishing);
 }
 
 /* ========================================================================
@@ -846,41 +665,10 @@ body {
 .c-val { color: var(--accent-amber); font-weight: 500; }
 
 /* ========================================================================
-   Form Grid (IMAP Config)
-   ======================================================================== */
-.form-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-}
-
-.form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.form-label {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--muted);
-}
-
-.badge-pill {
-    background: var(--surface-cream-strong);
-    color: var(--ink);
-    font-size: 11px;
-    font-weight: 500;
-    padding: 3px 10px;
-    border-radius: var(--rounded-pill);
-    border: 1px solid var(--hairline);
-}
-
-/* ========================================================================
    Results Table (Editorial)
    ======================================================================== */
 .results-section {
-    margin-top: 48px;
+    margin-top: 40px;
 }
 
 .results-header {
@@ -932,25 +720,41 @@ body {
     background-color: var(--surface-soft);
 }
 
+.status-pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: var(--rounded-pill);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.status-pill.safe {
+    background: var(--status-safe-bg);
+    color: var(--status-safe);
+}
+
+.status-pill.suspicious {
+    background: var(--status-suspicious-bg);
+    color: var(--status-suspicious);
+}
+
+.status-pill.phishing {
+    background: var(--status-phishing-bg);
+    color: var(--status-phishing);
+}
+
 .score-inline {
     font-family: var(--font-display);
     font-size: 18px;
     font-weight: 500;
 }
 
-.source-badge {
-    font-size: 11px;
-    font-family: var(--font-mono);
-    color: var(--muted);
-    background: var(--surface-soft);
-    padding: 2px 7px;
-    border-radius: var(--rounded-xs);
-    border: 1px solid var(--hairline);
-}
-
-.source-badge.imap {
-    color: var(--primary);
-    border-color: rgba(204, 120, 92, 0.3);
+.action-badge {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--body-strong);
 }
 
 .empty-state {
@@ -959,6 +763,87 @@ body {
     color: var(--muted);
     font-size: 14px;
 }
+
+/* ========================================================================
+   Urgent Phishing Intercept Modal
+   ======================================================================== */
+.alert-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(20, 20, 19, 0.7);
+    backdrop-filter: blur(5px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 20px;
+}
+
+.alert-modal-overlay.visible {
+    display: flex;
+}
+
+.alert-modal {
+    background: var(--canvas);
+    border: 2px solid var(--status-phishing);
+    border-radius: var(--rounded-lg);
+    width: 100%;
+    max-width: 520px;
+    padding: 32px;
+    text-align: center;
+    box-shadow: 0 16px 48px rgba(198, 69, 69, 0.25);
+    animation: modalPop 0.22s ease-out;
+}
+
+@keyframes modalPop {
+    from { opacity: 0; transform: scale(0.94); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.alert-icon-ring {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--status-phishing-bg);
+    color: var(--status-phishing);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    margin: 0 auto 16px;
+}
+
+.alert-modal-title {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 400;
+    color: var(--status-phishing);
+    letter-spacing: -0.5px;
+    margin-bottom: 8px;
+}
+
+.alert-modal-sub {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.5;
+    margin-bottom: 20px;
+}
+
+.alert-modal-details {
+    background: var(--surface-soft);
+    border: 1px solid var(--hairline);
+    border-radius: var(--rounded-md);
+    padding: 16px;
+    text-align: left;
+    font-size: 13px;
+    color: var(--body);
+}
+
+.alert-item {
+    margin-bottom: 6px;
+}
+.alert-item:last-child { margin-bottom: 0; }
+.alert-item strong { color: var(--ink); }
 
 /* ========================================================================
    Detail Modal (Cream & Clean Editorial)
@@ -1036,8 +921,59 @@ body {
     font-weight: 500;
 }
 
+.breakdown-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted-soft);
+    display: block;
+    margin-bottom: 6px;
+}
+
+.breakdown-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.breakdown-chip {
+    background: var(--surface-soft);
+    border: 1px solid var(--hairline);
+    padding: 4px 9px;
+    border-radius: var(--rounded-sm);
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.breakdown-chip-title {
+    color: var(--muted);
+}
+
+.breakdown-chip-val {
+    font-weight: 600;
+}
+
+.evidence-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.evidence-list li {
+    font-size: 13px;
+    background: var(--surface-soft);
+    border: 1px solid var(--hairline);
+    border-radius: var(--rounded-sm);
+    padding: 7px 12px;
+    color: var(--body);
+}
+
 /* ========================================================================
-   Footer (Dark Navy Surface per DESIGN.md)
+   Footer
    ======================================================================== */
 .footer-dark {
     margin-top: 80px;
@@ -1136,25 +1072,12 @@ body {
     animation: toastIn 0.25s ease;
 }
 
-.toast.success {
-    border-color: var(--status-safe);
-}
-
-.toast.error {
-    border-color: var(--status-phishing);
-}
-
-.toast.info {
-    border-color: var(--primary);
-}
+.toast.success { border-color: var(--status-safe); }
+.toast.error { border-color: var(--status-phishing); }
+.toast.info { border-color: var(--primary); }
 
 @keyframes toastIn {
     from { opacity: 0; transform: translateY(12px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: translateY(0); }
 }
 
@@ -1168,7 +1091,11 @@ body {
     .stats-row {
         grid-template-columns: repeat(2, 1fr);
     }
-    .form-grid {
+    .notif-card {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .form-grid-2 {
         grid-template-columns: 1fr;
     }
     .footer-inner {
@@ -1179,19 +1106,9 @@ body {
 
 @media (max-width: 600px) {
     .hero-title {
-        font-size: 34px;
+        font-size: 32px;
     }
     .stats-row {
         grid-template-columns: 1fr;
-    }
-    .top-nav {
-        height: auto;
-        padding: 16px 0;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 12px;
-    }
-    .nav-links {
-        display: none;
     }
 }
