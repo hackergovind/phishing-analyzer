@@ -3,117 +3,126 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="AI-Powered Phishing Email Analysis Dashboard — Real-time threat detection and email security monitoring.">
-    <title>PhishGuard AI — Phishing Email Analyzer</title>
+    <meta name="description" content="PhishGuard — Multi-signal email threat analysis and real-time IMAP mailbox verification.">
+    <title>PhishGuard — Email Threat Detection</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
-<!-- Toast Container -->
+<!-- Toast Notification Container -->
 <div class="toast-container" id="toastContainer"></div>
 
-<!-- Detail Modal -->
+<!-- Email Detail Modal -->
 <div class="modal-overlay" id="detailModal">
     <div class="modal">
-        <button class="modal-close" onclick="closeModal()">✕ Close</button>
-        <h3 id="modalTitle">Email Analysis Details</h3>
+        <div class="modal-header-bar">
+            <h3 id="modalTitle">Email Analysis Details</h3>
+            <button class="modal-close" onclick="closeModal()">✕ Close</button>
+        </div>
         <div id="modalBody"></div>
     </div>
 </div>
 
-<div class="app-container">
+<div class="page-wrapper">
 
-    <!-- ======== Navbar ======== -->
-    <nav class="navbar">
-        <div class="navbar-brand">
-            <div class="logo-icon">🛡️</div>
-            <div>
-                <h1>PhishGuard AI</h1>
-                <span>Advanced Phishing Detection Engine v2.0</span>
+    <!-- ======== Navigation ======== -->
+    <nav class="top-nav">
+        <div class="nav-left">
+            <div class="brand-cluster">
+                <svg class="spike-mark" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                    <path d="M12 2C12 7.5 7.5 12 2 12C7.5 12 12 16.5 12 22C12 16.5 16.5 12 22 12C16.5 12 12 7.5 12 2Z"/>
+                </svg>
+                <span class="brand-name">PhishGuard</span>
+                <span class="brand-version">v2.0</span>
+            </div>
+            <div class="nav-links">
+                <a href="#analysis-section" class="nav-link">Analyze</a>
+                <a href="#live-inspection" class="nav-link">Inspector</a>
+                <a href="#scanner-section" class="nav-link">IMAP Scanner</a>
+                <a href="#results-section" class="nav-link">Audit Log</a>
             </div>
         </div>
-        <div class="navbar-status">
-            <div class="scanner-badge" id="scannerBadge">
-                <span class="dot"></span>
+        <div class="nav-right">
+            <div class="scanner-status-pill" id="scannerBadge">
+                <span class="status-dot"></span>
                 <span id="scannerBadgeText">Scanner Offline</span>
             </div>
+            <a href="#analysis-section" class="btn btn-primary btn-sm">Inspect Email</a>
         </div>
     </nav>
 
-    <!-- ======== Stats Row ======== -->
-    <div class="stats-row">
-        <div class="stat-card total">
-            <div class="stat-label">Total Scanned</div>
+    <!-- ======== Hero Section ======== -->
+    <header class="hero-band">
+        <div class="hero-content">
+            <span class="badge-coral">Mail Defense</span>
+            <h1 class="hero-title">Inspect email signals.<br>Stop impersonation before delivery.</h1>
+            <p class="hero-sub">
+                Four verification layers evaluate message authenticity: calibrated ensemble learning, header validation (SPF, DKIM, DMARC), structural heuristics, and domain typosquatting detection.
+            </p>
+        </div>
+    </header>
+
+    <!-- ======== Stats Summary ======== -->
+    <section class="stats-row">
+        <div class="stat-card">
+            <span class="stat-label">Total Scanned</span>
             <div class="stat-value" id="statTotal">0</div>
-            <div class="stat-sub">All time</div>
+            <span class="stat-sub">Audit trail records</span>
         </div>
-        <div class="stat-card safe">
-            <div class="stat-label">Safe</div>
-            <div class="stat-value" id="statSafe">0</div>
-            <div class="stat-sub">Delivered</div>
+        <div class="stat-card">
+            <span class="stat-label">Safe</span>
+            <div class="stat-value stat-safe-val" id="statSafe">0</div>
+            <span class="stat-sub">Delivered clean</span>
         </div>
-        <div class="stat-card suspicious">
-            <div class="stat-label">Suspicious</div>
-            <div class="stat-value" id="statSuspicious">0</div>
-            <div class="stat-sub">Flagged</div>
+        <div class="stat-card">
+            <span class="stat-label">Suspicious</span>
+            <div class="stat-value stat-suspicious-val" id="statSuspicious">0</div>
+            <span class="stat-sub">Flagged with warning</span>
         </div>
-        <div class="stat-card phishing">
-            <div class="stat-label">Phishing</div>
-            <div class="stat-value" id="statPhishing">0</div>
-            <div class="stat-sub">Quarantined</div>
+        <div class="stat-card">
+            <span class="stat-label">Phishing</span>
+            <div class="stat-value stat-phishing-val" id="statPhishing">0</div>
+            <span class="stat-sub">Quarantined</span>
         </div>
-    </div>
+    </section>
 
-    <!-- ======== Main Grid ======== -->
-    <div class="main-grid">
+    <!-- ======== Main Grid: Inspector & Interactive Analysis ======== -->
+    <div class="main-grid" id="analysis-section">
 
-        <!-- Chart Card -->
-        <div class="glass-card">
-            <div class="card-header">
-                <h2>Threat Distribution</h2>
-                <div class="card-icon">📊</div>
-            </div>
-            <div class="card-body">
-                <div class="chart-wrapper">
-                    <canvas id="threatChart"></canvas>
-                </div>
-            </div>
-        </div>
-
-                </div>
-            </div>
-        </div>
-
-        <!-- Analysis & Inspection Card -->
-        <div class="glass-card">
+        <!-- Left: Analysis Workplace (Cream Card) -->
+        <div class="surface-card">
             <div class="card-header">
                 <div class="tabs-nav">
-                    <button class="tab-btn active" id="tabBtnText" onclick="switchTab('text')">📝 Email Text</button>
-                    <button class="tab-btn" id="tabBtnFile" onclick="switchTab('file')">📁 Upload .EML</button>
-                    <button class="tab-btn" id="tabBtnTrain" onclick="switchTab('train')">🧠 Train Model</button>
+                    <button class="tab-btn active" id="tabBtnText" onclick="switchTab('text')">Raw Text</button>
+                    <button class="tab-btn" id="tabBtnFile" onclick="switchTab('file')">Upload .EML</button>
+                    <button class="tab-btn" id="tabBtnTrain" onclick="switchTab('train')">Model Retraining</button>
                 </div>
-                <div class="card-icon">🔍</div>
             </div>
             <div class="card-body">
+
                 <!-- Tab 1: Text Input -->
                 <div class="tab-pane active" id="paneText">
                     <div class="presets-bar">
-                        <span class="presets-label">Quick Presets:</span>
-                        <button class="preset-chip" onclick="loadPreset('paypal')">PayPal Phish</button>
+                        <span class="presets-label">Sample Emails:</span>
+                        <button class="preset-chip" onclick="loadPreset('paypal')">PayPal Spoof</button>
                         <button class="preset-chip" onclick="loadPreset('microsoft')">Microsoft Alert</button>
                         <button class="preset-chip" onclick="loadPreset('dropbox')">Dropbox Reset</button>
-                        <button class="preset-chip" onclick="loadPreset('safe')">Safe Meeting</button>
-                        <button class="preset-chip" onclick="loadPreset('nigerian')">Prince Scam</button>
+                        <button class="preset-chip" onclick="loadPreset('safe')">Quarterly Sync</button>
+                        <button class="preset-chip" onclick="loadPreset('nigerian')">Wire Transfer</button>
                     </div>
                     <textarea
-                        class="analyze-textarea"
+                        class="text-input text-area"
                         id="analyzeInput"
-                        placeholder="Paste email headers and body text here to analyze for phishing indicators…"
+                        rows="7"
+                        placeholder="Paste email headers and body text here for multi-signal verification…"
                     ></textarea>
                     <div class="btn-row">
                         <button class="btn btn-primary" id="analyzeBtn" onclick="analyzeText()">
-                            🛡️ Analyze Text
+                            Analyze Message
                         </button>
                         <button class="btn btn-secondary" onclick="clearAnalysis()">Clear</button>
                     </div>
@@ -122,15 +131,23 @@
                 <!-- Tab 2: EML File Upload -->
                 <div class="tab-pane" id="paneFile">
                     <div class="drop-zone" id="dropZone" onclick="document.getElementById('emlFileInput').click()">
-                        <div class="drop-zone-icon">📥</div>
-                        <div class="drop-zone-title">Drop your <code>.eml</code> file here, or click to browse</div>
-                        <div class="drop-zone-sub">Extracts full raw headers, MIME parts, DKIM/SPF auth, and attachments</div>
+                        <div class="drop-zone-icon">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="12" y1="18" x2="12" y2="12"></line>
+                                <line x1="9" y1="15" x2="12" y2="12"></line>
+                                <line x1="15" y1="15" x2="12" y2="12"></line>
+                            </svg>
+                        </div>
+                        <div class="drop-zone-title">Drop raw <code>.eml</code> file here, or click to browse</div>
+                        <div class="drop-zone-sub">Parses full RFC 822 MIME headers, DKIM signatures, SPF results, and attachments</div>
                         <input type="file" id="emlFileInput" accept=".eml" style="display:none" onchange="handleFileSelect(event)">
                         <div id="selectedFileName" class="selected-file-badge" style="display:none"></div>
                     </div>
-                    <div class="btn-row" style="margin-top:14px;">
+                    <div class="btn-row" style="margin-top:16px;">
                         <button class="btn btn-primary" id="analyzeFileBtn" onclick="uploadEmlFile()" disabled>
-                            🛡️ Analyze EML File
+                            Analyze EML File
                         </button>
                         <button class="btn btn-secondary" onclick="clearFileUpload()">Clear</button>
                     </div>
@@ -138,117 +155,162 @@
 
                 <!-- Tab 3: Model Retraining -->
                 <div class="tab-pane" id="paneTrain">
-                    <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;">
-                        Train the ensemble machine learning model (Logistic Regression + Random Forest + Gradient Boosting with probability calibration).
+                    <p class="section-desc">
+                        Retrain the calibrated soft-voting ensemble (Logistic Regression, Random Forest, Gradient Boosting) on verified samples or upload a custom CSV dataset.
                     </p>
-                    <div class="form-group" style="margin-bottom:12px;">
-                        <label>Optional: Upload Custom Training CSV (columns: <code>email_body, label, ...</code>)</label>
-                        <input type="file" class="form-input" id="trainCsvInput" accept=".csv">
+                    <div class="form-group" style="margin-bottom:16px;">
+                        <label class="form-label">Custom Dataset CSV (optional):</label>
+                        <input type="file" class="text-input" id="trainCsvInput" accept=".csv" style="padding:6px 12px;">
                     </div>
                     <div class="btn-row">
                         <button class="btn btn-primary" id="trainBtn" onclick="triggerTraining()">
-                            ⚡ Retrain Model
+                            Retrain Classifier
                         </button>
                     </div>
-                    <div id="trainReportArea" class="train-report" style="display:none">
-                        <h4>Training Classification Report</h4>
+                    <div id="trainReportArea" class="train-report-card" style="display:none">
+                        <span class="code-badge">Classification Report</span>
                         <pre id="trainReportContent"></pre>
                     </div>
                 </div>
 
-                <!-- Result Container (Shared across text and file analysis) -->
-                <div class="result-inline" id="inlineResult">
-                    <div class="result-header-row">
-                        <div>
-                            <span class="status-badge" id="inlineStatus"></span>
+                <!-- Result Card (Shared) -->
+                <div class="result-box" id="inlineResult">
+                    <div class="result-top">
+                        <div class="result-verdict">
+                            <span class="status-pill" id="inlineStatus"></span>
+                            <span class="result-action-text" id="inlineAction"></span>
                         </div>
-                        <div class="result-score" id="inlineScore"></div>
+                        <div class="score-display">
+                            <span class="score-number" id="inlineScore">0.0</span>
+                            <span class="score-scale">/ 100</span>
+                        </div>
                     </div>
-                    <div style="font-size:0.85rem;color:var(--text-primary);margin-top:6px;font-weight:600;" id="inlineAction"></div>
-                    <div style="font-size:0.78rem;color:var(--text-muted);margin-top:2px;">
-                        Confidence: <strong id="inlineConfidence"></strong>
+                    <div class="result-meta">
+                        Confidence Floor: <strong id="inlineConfidence">0%</strong>
                     </div>
 
-                    <!-- Visual Breakdown Bar -->
-                    <div class="breakdown-container" id="breakdownContainer" style="margin-top:10px;">
-                        <div class="breakdown-label-row">
-                            <span style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;">Signal Contribution Breakdown</span>
-                        </div>
+                    <!-- Breakdown Chips -->
+                    <div class="breakdown-wrap">
+                        <span class="breakdown-title">Signal Breakdown</span>
                         <div class="breakdown-chips" id="breakdownChips"></div>
                     </div>
 
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;">
-                        <h4 style="font-size:0.8rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;">Evidence Trail</h4>
-                        <button class="btn btn-secondary" onclick="copyReport()" style="padding:4px 10px;font-size:0.72rem;">📋 Copy Report</button>
+                    <!-- Evidence List -->
+                    <div class="evidence-section">
+                        <div class="evidence-header">
+                            <h4>Evidence Trail</h4>
+                            <button class="btn-copy" onclick="copyReport()">Copy Report</button>
+                        </div>
+                        <ul class="evidence-list" id="inlineEvidence"></ul>
                     </div>
-                    <ul class="result-evidence" id="inlineEvidence"></ul>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Right: Threat Distribution & Chrome Mockup (Dark Surface Card) -->
+        <div class="surface-dark-card" id="live-inspection">
+            <div class="card-header-dark">
+                <div class="card-header-left">
+                    <div class="window-dots">
+                        <span class="dot-red"></span>
+                        <span class="dot-yellow"></span>
+                        <span class="dot-green"></span>
+                    </div>
+                    <span class="window-title">Threat Intelligence & Signals</span>
+                </div>
+                <span class="code-pill">Live Metrics</span>
+            </div>
+            <div class="card-body-dark">
+                <div class="chart-container">
+                    <canvas id="threatChart"></canvas>
+                </div>
+
+                <!-- Dark Code Inspector Panel -->
+                <div class="code-inspector-block">
+                    <div class="inspector-header">
+                        <span class="inspector-label">Inspection Architecture</span>
+                        <span class="code-status-dot">Online</span>
+                    </div>
+                    <pre class="code-lines"><code><span class="c-comment"># Multi-signal evaluation flow</span>
+<span class="c-key">weights</span>:
+  ml_ensemble:      <span class="c-val">35.0</span>  <span class="c-comment"># Soft-voting probabilities</span>
+  heuristics:       <span class="c-val">30.0</span>  <span class="c-comment"># Urgency, brand spoofing</span>
+  header_auth:      <span class="c-val">15.0</span>  <span class="c-comment"># SPF, DKIM, DMARC</span>
+  url_risk:         <span class="c-val">20.0</span>  <span class="c-comment"># Typosquatting, IP links</span>
+<span class="c-key">thresholds</span>:
+  suspicious:       <span class="c-val">35.0</span>  <span class="c-comment"># Warning banner</span>
+  phishing:         <span class="c-val">60.0</span>  <span class="c-comment"># Quarantine gate (conf >= 60%)</span></code></pre>
                 </div>
             </div>
         </div>
 
-        <!-- Mail Config Card -->
-        <div class="glass-card" style="grid-column: 1 / -1;">
+        <!-- Full-Width: IMAP Mailbox Scanner Configuration -->
+        <div class="surface-card full-span" id="scanner-section">
             <div class="card-header">
-                <h2>📬 IMAP Mail Scanner Configuration</h2>
-                <div class="card-icon">⚙️</div>
+                <div>
+                    <h2 class="section-headline">IMAP Mailbox Scanner</h2>
+                    <p class="section-sub">Connect to an IMAP mailbox. Unread messages are scored automatically; identified threats move to quarantine.</p>
+                </div>
+                <span class="badge-pill">Autonomous</span>
             </div>
             <div class="card-body">
-                <div class="form-row">
+                <div class="form-grid">
                     <div class="form-group">
-                        <label>IMAP Host</label>
-                        <input class="form-input" id="mailHost" type="text" placeholder="imap.gmail.com" value="imap.gmail.com">
+                        <label class="form-label">IMAP Host</label>
+                        <input class="text-input" id="mailHost" type="text" value="imap.gmail.com" placeholder="imap.gmail.com">
                     </div>
                     <div class="form-group">
-                        <label>Port</label>
-                        <input class="form-input" id="mailPort" type="number" placeholder="993" value="993">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Email Address</label>
-                        <input class="form-input" id="mailEmail" type="email" placeholder="your-email@gmail.com">
+                        <label class="form-label">Port</label>
+                        <input class="text-input" id="mailPort" type="number" value="993" placeholder="993">
                     </div>
                     <div class="form-group">
-                        <label>App Password</label>
-                        <input class="form-input" id="mailPassword" type="password" placeholder="xxxx xxxx xxxx xxxx">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Folder</label>
-                        <input class="form-input" id="mailFolder" type="text" placeholder="INBOX" value="INBOX">
+                        <label class="form-label">Email Address</label>
+                        <input class="text-input" id="mailEmail" type="email" placeholder="user@company.com">
                     </div>
                     <div class="form-group">
-                        <label>Poll Interval (seconds)</label>
-                        <input class="form-input" id="mailInterval" type="number" placeholder="30" value="30">
+                        <label class="form-label">App Password</label>
+                        <input class="text-input" id="mailPassword" type="password" placeholder="16-character app password">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Folder to Monitor</label>
+                        <input class="text-input" id="mailFolder" type="text" value="INBOX">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Poll Interval (seconds)</label>
+                        <input class="text-input" id="mailInterval" type="number" value="30">
                     </div>
                 </div>
-                <div class="btn-row">
-                    <button class="btn btn-success" id="connectBtn" onclick="connectMail()">
-                        ▶ Connect & Start Scanning
+                <div class="btn-row" style="margin-top:20px;">
+                    <button class="btn btn-primary" id="connectBtn" onclick="connectMail()">
+                        Connect & Start Monitoring
                     </button>
-                    <button class="btn btn-danger" id="disconnectBtn" onclick="disconnectMail()" disabled>
-                        ⏹ Stop Scanner
+                    <button class="btn btn-secondary" id="disconnectBtn" onclick="disconnectMail()" disabled>
+                        Stop Scanner
                     </button>
                 </div>
             </div>
         </div>
+
     </div>
 
-    <!-- ======== Results Table ======== -->
-    <div class="glass-card results-section">
-        <div class="card-header">
-            <h2>Recent Scan Results</h2>
-            <button class="btn btn-secondary" onclick="refreshResults()" style="padding:6px 14px;font-size:0.76rem;">
-                ↻ Refresh
+    <!-- ======== Results Audit Log ======== -->
+    <section class="results-section" id="results-section">
+        <div class="results-header">
+            <div>
+                <h2 class="section-headline">Scan Audit Trail</h2>
+                <p class="section-sub">Recent verdicts recorded in the asynchronous SQLite database.</p>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="refreshResults()">
+                Refresh Table
             </button>
         </div>
-        <div class="card-body">
-            <div class="results-table-wrapper">
-                <table class="results-table" id="resultsTable">
+        <div class="surface-card table-card">
+            <div class="table-scroll">
+                <table class="audit-table" id="resultsTable">
                     <thead>
                         <tr>
-                            <th>Time</th>
+                            <th>Timestamp</th>
                             <th>Sender</th>
                             <th>Subject</th>
                             <th>Status</th>
@@ -263,11 +325,44 @@
                 </table>
             </div>
             <div class="empty-state" id="emptyState">
-                <div class="empty-icon">📭</div>
-                <p>No scan results yet. Analyze an email or connect your mail to get started.</p>
+                <p>No messages analyzed yet. Submit text or upload an EML file to record results.</p>
             </div>
         </div>
-    </div>
+    </section>
+
+    <!-- ======== Footer ======== -->
+    <footer class="footer-dark">
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <div class="brand-cluster">
+                    <svg class="spike-mark" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                        <path d="M12 2C12 7.5 7.5 12 2 12C7.5 12 12 16.5 12 22C12 16.5 16.5 12 22 12C16.5 12 12 7.5 12 2Z"/>
+                    </svg>
+                    <span class="footer-brand-name">PhishGuard</span>
+                </div>
+                <p class="footer-desc">
+                    Defensive security software for automated email verification and threat mitigation.
+                </p>
+            </div>
+            <div class="footer-links">
+                <div class="footer-col">
+                    <span class="footer-col-title">Documentation</span>
+                    <a href="/docs" target="_blank">Swagger OpenAPI</a>
+                    <a href="/redoc" target="_blank">ReDoc Specification</a>
+                    <a href="https://github.com/hackergovind/phishing-analyzer" target="_blank">GitHub Repository</a>
+                </div>
+                <div class="footer-col">
+                    <span class="footer-col-title">Verification</span>
+                    <a href="/health">Health Endpoint</a>
+                    <a href="/api/stats">Aggregate Statistics</a>
+                    <a href="/api/results">Recent Results</a>
+                </div>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <span>&copy; 2026 PhishGuard AI. Built for defensive security teams.</span>
+        </div>
+    </footer>
 
 </div>
 

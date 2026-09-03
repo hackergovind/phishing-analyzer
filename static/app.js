@@ -1,10 +1,9 @@
 /**
  * PhishGuard AI — Dashboard Application Logic
- * Handles stats polling, manual analysis, mail scanner controls,
- * results table rendering, and Chart.js visualization.
+ * Editorial interface connecting to FastAPI endpoints.
  */
 
-const API = '';  // Same origin
+const API = '';
 
 // =========================================================================
 // State
@@ -15,67 +14,63 @@ let pollingInterval = null;
 let selectedEmlFile = null;
 let currentResultData = null;
 
-// Presets data
+// Presets data without hype
 const PRESETS = {
-    paypal: `Subject: URGENT: Your PayPal account has been compromised!
-From: PayPal Security <service@paypal.com.verify-access.xyz>
+    paypal: `Subject: URGENT: Verify your account information
+From: PayPal Support <security@paypal.com.verify-access.xyz>
 
-Dear Customer, We detected unauthorized access to your account. 
-Your account will be suspended within 24 hours unless you verify your information immediately.
+Dear Customer, 
 
-Click here to secure your account: http://paypa1.com.malicious.top/secure/login?id=38294
+We detected unauthorized access to your account. Your access will be suspended within 24 hours unless you confirm your identity immediately.
+
+Confirm your account here: http://paypa1.com.malicious.top/secure/login?id=38294
 
 Failure to respond within 48 hours will result in permanent account closure.
-Confirm your identity now to avoid losing access to your funds.
 
-Regards,
-PayPal Security Team`,
+PayPal Support Team`,
 
-    microsoft: `Subject: SECURITY ALERT: Unusual activity detected on your Microsoft account.
+    microsoft: `Subject: SECURITY ALERT: Unusual activity detected
 From: Microsoft Team <account-alerts@acc0unt-verify.tk>
 
-Dear valued customer, Someone tried to sign in to your account from an unknown device.
+Someone tried to sign in to your Microsoft account from an unrecognized IP address.
 
-Click here immediately to verify: https://acc0unt-verify.tk/microsoft/login
+Verify your identity: https://acc0unt-verify.tk/microsoft/login
 
-If you do not verify within 24 hours, your account will be deactivated.
-Update your payment information to continue using our services.
+If you do not verify within 24 hours, your account will be disabled.
 
 Microsoft Security Team`,
 
-    dropbox: `Subject: Reset your Dropbox password immediately
+    dropbox: `Subject: Password expiration notice
 From: Dropbox Notice <support@dr0pbox-secure.xyz>
 
-Dear user,
-Your Dropbox password expires today. Please click the link below to update your password and continue using our service.
+Your Dropbox password expires today. Click below to update your password and maintain access to shared folders.
 
 https://dr0pbox-secure.xyz/password-reset
 
-If you did not request this change, please ignore this email.
+If you did not request this update, ignore this notification.
 
-Thank you,
 Dropbox Support`,
 
-    safe: `Subject: Project Phoenix Sync and Design Review
+    safe: `Subject: Q3 Engineering Sync and Roadmap Review
 From: Jordan Miller <jordan.miller@company.org>
 
 Hi Alex,
 
-The meeting has been rescheduled to Thursday at 2:00 PM. Please update your calendar.
-Also, attached is the quarterly report for Q3. Let me know if you have any questions before our sync.
+The engineering review has been moved to Thursday at 2:00 PM. The slides and preliminary roadmap are attached in the shared drive.
+
+Let me know if you have questions before our sync.
 
 Thanks,
 Jordan`,
 
-    nigerian: `Subject: Confidential Inheritance Notification ($15,000,000 USD)
+    nigerian: `Subject: Estate Distribution Fund Notice ($15,000,000 USD)
 From: Dr. James Okonkwo <barrister.james@attorney-lagos.biz>
 
 Dear Sir/Madam,
 
-I am Dr. James Okonkwo, a barrister in Lagos, Nigeria. My late client left behind an inheritance of $15,000,000. Because you share the same surname, I contact you to claim this fund.
+My late client left an estate valued at $15,000,000 USD without an appointed beneficiary. Because you share the same surname, I am reaching out to facilitate the legal transfer of these funds.
 
-Kindly wire transfer $500 as processing fee to receive your inheritance. Please provide your bank account details and social security number.
-Do not share this with anyone. This is a confidential matter.
+Please remit a $500 transfer filing fee to proceed and supply your primary bank account details. Keep this communication strictly confidential.
 
 Regards,
 Dr. James Okonkwo`
@@ -98,11 +93,11 @@ function startPolling() {
         refreshStats();
         refreshResults();
         checkScannerStatus();
-    }, 5000);
+    }, 15000);
 }
 
 // =========================================================================
-// Tabs Navigation
+// Tab Navigation
 // =========================================================================
 function switchTab(tab) {
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -120,62 +115,66 @@ function switchTab(tab) {
     }
 }
 
+// =========================================================================
+// Presets
+// =========================================================================
 function loadPreset(key) {
+    switchTab('text');
+    const input = document.getElementById('analyzeInput');
     if (PRESETS[key]) {
-        switchTab('text');
-        const input = document.getElementById('analyzeInput');
         input.value = PRESETS[key];
-        showToast(`Loaded ${key} preset. Click Analyze to run!`, 'info');
+        showToast(`Preset loaded: ${key.charAt(0).toUpperCase() + key.slice(1)}`, 'info');
     }
 }
 
 // =========================================================================
-// Drop Zone & File Upload
+// Drag & Drop EML File Handler
 // =========================================================================
 function initDropZone() {
     const dropZone = document.getElementById('dropZone');
     if (!dropZone) return;
 
-    ['dragenter', 'dragover'].forEach(name => {
-        dropZone.addEventListener(name, (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            dropZone.classList.add('dragover');
-        });
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
     });
 
-    ['dragleave', 'drop'].forEach(name => {
-        dropZone.addEventListener(name, (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            dropZone.classList.remove('dragover');
-        });
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
     });
 
     dropZone.addEventListener('drop', (e) => {
         const dt = e.dataTransfer;
         const files = dt.files;
-        if (files && files.length > 0) {
+        if (files.length > 0) {
             setEmlFile(files[0]);
         }
     });
 }
 
-function handleFileSelect(e) {
-    const files = e.target.files;
-    if (files && files.length > 0) {
+function handleFileSelect(event) {
+    const files = event.target.files;
+    if (files.length > 0) {
         setEmlFile(files[0]);
     }
 }
 
 function setEmlFile(file) {
     if (!file.name.toLowerCase().endsWith('.eml')) {
-        showToast('Please select a valid .eml email file.', 'error');
+        showToast('Please select a valid .eml file.', 'error');
         return;
     }
     selectedEmlFile = file;
     const badge = document.getElementById('selectedFileName');
-    badge.textContent = `Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+    badge.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
     badge.style.display = 'inline-block';
     document.getElementById('analyzeFileBtn').disabled = false;
     showToast(`Loaded ${file.name}`, 'info');
@@ -200,7 +199,7 @@ async function uploadEmlFile() {
 
     const btn = document.getElementById('analyzeFileBtn');
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Analyzing EML…';
+    btn.textContent = 'Analyzing EML…';
 
     try {
         const formData = new FormData();
@@ -211,14 +210,14 @@ async function uploadEmlFile() {
         const data = await res.json();
 
         showInlineResult(data);
-        showToast(`EML analysis complete: ${data.status}`, data.status === 'Safe' ? 'success' : 'error');
+        showToast(`Analysis complete: ${data.status}`, data.status === 'Safe' ? 'success' : 'error');
         refreshStats();
         refreshResults();
     } catch (e) {
         showToast('EML analysis failed: ' + e.message, 'error');
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '🛡️ Analyze EML File';
+        btn.textContent = 'Analyze EML File';
     }
 }
 
@@ -232,7 +231,7 @@ async function triggerTraining() {
     const reportContent = document.getElementById('trainReportContent');
 
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Training Ensemble Model…';
+    btn.textContent = 'Training Ensemble Model…';
 
     try {
         const formData = new FormData();
@@ -245,8 +244,8 @@ async function triggerTraining() {
 
         if (data.status === 'ok') {
             reportArea.style.display = 'block';
-            reportContent.textContent = data.report || 'Training completed successfully.';
-            showToast('Model retraining completed!', 'success');
+            reportContent.textContent = data.report || 'Model retrained successfully.';
+            showToast('Model training completed.', 'success');
         } else {
             showToast('Training failed: ' + (data.detail || 'Unknown error'), 'error');
         }
@@ -254,7 +253,7 @@ async function triggerTraining() {
         showToast('Training error: ' + e.message, 'error');
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '⚡ Retrain Model';
+        btn.textContent = 'Retrain Classifier';
     }
 }
 
@@ -267,11 +266,11 @@ function copyReport() {
         return;
     }
     const d = currentResultData;
-    let text = `=== PhishGuard AI Analysis Report ===\n`;
+    let text = `=== PhishGuard Threat Analysis Report ===\n`;
     text += `Verdict: ${d.status}\n`;
     text += `Threat Score: ${d.threat_score.toFixed(1)} / 100\n`;
-    text += `Confidence: ${(d.confidence * 100).toFixed(0)}%\n`;
-    text += `Recommended Action: ${d.action}\n\n`;
+    text += `Confidence Floor: ${(d.confidence * 100).toFixed(0)}%\n`;
+    text += `Action: ${d.action}\n\n`;
     text += `Breakdown:\n`;
     if (d.breakdown) {
         for (const [k, v] of Object.entries(d.breakdown)) {
@@ -284,9 +283,9 @@ function copyReport() {
     });
 
     navigator.clipboard.writeText(text).then(() => {
-        showToast('Report copied to clipboard!', 'success');
+        showToast('Report copied to clipboard.', 'success');
     }).catch(err => {
-        showToast('Failed to copy: ' + err, 'error');
+        showToast('Copy failed: ' + err, 'error');
     });
 }
 
@@ -308,10 +307,13 @@ async function refreshStats() {
 }
 
 // =========================================================================
-// Chart
+// Chart.js (Warm Editorial Dark Theme)
 // =========================================================================
 function initChart() {
-    const ctx = document.getElementById('threatChart').getContext('2d');
+    const canvas = document.getElementById('threatChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
     threatChart = new Chart(ctx, {
         type: 'doughnut',
         data: {
@@ -319,42 +321,40 @@ function initChart() {
             datasets: [{
                 data: [0, 0, 0],
                 backgroundColor: [
-                    'rgba(16, 185, 129, 0.8)',
-                    'rgba(245, 158, 11, 0.8)',
-                    'rgba(239, 68, 68, 0.8)',
+                    '#5db872',
+                    '#d4a017',
+                    '#c64545'
                 ],
-                borderColor: [
-                    'rgba(16, 185, 129, 1)',
-                    'rgba(245, 158, 11, 1)',
-                    'rgba(239, 68, 68, 1)',
-                ],
+                borderColor: '#181715',
                 borderWidth: 2,
-                hoverOffset: 8,
+                hoverOffset: 6,
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            cutout: '65%',
+            cutout: '72%',
             plugins: {
                 legend: {
                     position: 'bottom',
                     labels: {
-                        color: '#94a3b8',
+                        color: '#a09d96',
                         font: { family: 'Inter', size: 12, weight: '500' },
-                        padding: 16,
+                        padding: 14,
                         usePointStyle: true,
-                        pointStyleWidth: 10,
+                        pointStyleWidth: 8,
                     }
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(17, 24, 39, 0.95)',
-                    titleFont: { family: 'Inter', weight: '600' },
+                    backgroundColor: 'rgba(24, 23, 21, 0.95)',
+                    titleColor: '#faf9f5',
+                    bodyColor: '#a09d96',
+                    titleFont: { family: 'Inter', weight: '500' },
                     bodyFont: { family: 'Inter' },
-                    borderColor: 'rgba(255,255,255,0.08)',
+                    borderColor: '#2d2b27',
                     borderWidth: 1,
-                    cornerRadius: 8,
-                    padding: 12,
+                    cornerRadius: 6,
+                    padding: 10,
                 }
             }
         }
@@ -372,7 +372,7 @@ function updateChart(stats) {
 }
 
 // =========================================================================
-// Manual Analysis
+// Text Analysis
 // =========================================================================
 async function analyzeText() {
     const input = document.getElementById('analyzeInput');
@@ -380,12 +380,12 @@ async function analyzeText() {
     const text = input.value.trim();
 
     if (!text) {
-        showToast('Please paste some email text to analyze.', 'error');
+        showToast('Paste email content before analyzing.', 'error');
         return;
     }
 
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Analyzing…';
+    btn.textContent = 'Analyzing Message…';
 
     try {
         const formData = new FormData();
@@ -399,10 +399,10 @@ async function analyzeText() {
         refreshStats();
         refreshResults();
     } catch (e) {
-        showToast('Analysis failed: ' + e.message, 'error');
+        showToast('Analysis error: ' + e.message, 'error');
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '🛡️ Analyze Text';
+        btn.textContent = 'Analyze Message';
     }
 }
 
@@ -411,9 +411,9 @@ function showInlineResult(data) {
     const container = document.getElementById('inlineResult');
     container.classList.add('visible');
 
-    const statusBadge = document.getElementById('inlineStatus');
-    statusBadge.textContent = data.status;
-    statusBadge.className = 'status-badge ' + data.status.toLowerCase();
+    const statusPill = document.getElementById('inlineStatus');
+    statusPill.textContent = data.status;
+    statusPill.className = 'status-pill ' + data.status.toLowerCase();
 
     const score = document.getElementById('inlineScore');
     score.textContent = data.threat_score.toFixed(1);
@@ -422,25 +422,27 @@ function showInlineResult(data) {
     document.getElementById('inlineAction').textContent = data.action;
     document.getElementById('inlineConfidence').textContent = (data.confidence * 100).toFixed(0) + '%';
 
-    // Render Breakdown Chips
+    // Breakdown Chips
     const breakdownChips = document.getElementById('breakdownChips');
     if (breakdownChips && data.breakdown) {
         breakdownChips.innerHTML = '';
         for (const [key, val] of Object.entries(data.breakdown)) {
             const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-            const color = val > 0 ? 'var(--status-phishing)' : val < 0 ? 'var(--status-safe)' : 'var(--text-muted)';
+            const color = val > 0 ? 'var(--status-phishing)' : val < 0 ? 'var(--status-safe)' : 'var(--muted)';
             const chip = document.createElement('div');
             chip.className = 'breakdown-chip';
-            chip.innerHTML = `<span class="breakdown-chip-title">${escapeHtml(label)}:</span> <span class="breakdown-chip-val" style="color:${color}">${val > 0 ? '+' : ''}${val.toFixed(1)}</span>`;
+            chip.innerHTML = `<span class="breakdown-chip-title">${escapeHtml(label)}</span><span class="breakdown-chip-val" style="color:${color}">${val > 0 ? '+' : ''}${val.toFixed(1)}</span>`;
             breakdownChips.appendChild(chip);
         }
     }
 
+    // Evidence List
     const evidenceList = document.getElementById('inlineEvidence');
     evidenceList.innerHTML = '';
     (data.evidence || []).forEach(ev => {
         const li = document.createElement('li');
-        li.innerHTML = `<strong style="color:var(--accent-cyan)">${escapeHtml(ev.source)}</strong>: ${escapeHtml(ev.detail)} <span style="color:${ev.contribution > 0 ? 'var(--status-phishing)' : 'var(--status-safe)'}; float:right; font-weight:600;">${ev.contribution > 0 ? '+' : ''}${ev.contribution.toFixed(1)}</span>`;
+        const color = ev.contribution > 0 ? 'var(--status-phishing)' : 'var(--status-safe)';
+        li.innerHTML = `<strong>${escapeHtml(ev.source)}</strong>: ${escapeHtml(ev.detail)} <span style="color:${color}; float:right; font-weight:600;">${ev.contribution > 0 ? '+' : ''}${ev.contribution.toFixed(1)}</span>`;
         evidenceList.appendChild(li);
     });
 }
@@ -448,95 +450,109 @@ function showInlineResult(data) {
 function clearAnalysis() {
     document.getElementById('analyzeInput').value = '';
     document.getElementById('inlineResult').classList.remove('visible');
-    currentResultData = null;
+}
+
+function getScoreColor(score) {
+    if (score >= 60) return '#c64545';
+    if (score >= 35) return '#d4a017';
+    return '#5db872';
 }
 
 // =========================================================================
-// Mail Scanner
+// IMAP Scanner Controls
 // =========================================================================
-async function connectMail() {
-    const btn = document.getElementById('connectBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Connecting…';
-
-    const config = {
-        imap_host: document.getElementById('mailHost').value,
-        imap_port: parseInt(document.getElementById('mailPort').value) || 993,
-        email: document.getElementById('mailEmail').value,
-        password: document.getElementById('mailPassword').value,
-        folder: document.getElementById('mailFolder').value || 'INBOX',
-        poll_interval: parseInt(document.getElementById('mailInterval').value) || 30,
-    };
-
-    if (!config.email || !config.password) {
-        showToast('Please enter your email and app password.', 'error');
-        btn.disabled = false;
-        btn.innerHTML = '▶ Connect & Start Scanning';
-        return;
-    }
-
-    try {
-        const res = await fetch(`${API}/api/mail/connect`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(config),
-        });
-        const data = await res.json();
-        if (data.status === 'ok') {
-            showToast('Mail scanner connected and running!', 'success');
-            document.getElementById('disconnectBtn').disabled = false;
-            updateScannerBadge(true);
-        } else {
-            showToast('Connection failed: ' + (data.detail || 'Unknown error'), 'error');
-            btn.disabled = false;
-        }
-    } catch (e) {
-        showToast('Connection error: ' + e.message, 'error');
-        btn.disabled = false;
-    }
-    btn.innerHTML = '▶ Connect & Start Scanning';
-}
-
-async function disconnectMail() {
-    try {
-        await fetch(`${API}/api/mail/disconnect`, { method: 'POST' });
-        showToast('Mail scanner stopped.', 'info');
-        document.getElementById('connectBtn').disabled = false;
-        document.getElementById('disconnectBtn').disabled = true;
-        updateScannerBadge(false);
-    } catch (e) {
-        showToast('Error stopping scanner: ' + e.message, 'error');
-    }
-}
-
 async function checkScannerStatus() {
     try {
-        const res = await fetch(`${API}/api/mail/status`);
+        const res = await fetch(`${API}/scanner/status`);
         const data = await res.json();
         updateScannerBadge(data.running);
-        if (data.running) {
-            document.getElementById('connectBtn').disabled = true;
-            document.getElementById('disconnectBtn').disabled = false;
-        }
     } catch (e) {
-        // Server might not be up yet
+        updateScannerBadge(false);
     }
 }
 
-function updateScannerBadge(active) {
+function updateScannerBadge(running) {
     const badge = document.getElementById('scannerBadge');
     const text = document.getElementById('scannerBadgeText');
-    if (active) {
+    const connectBtn = document.getElementById('connectBtn');
+    const disconnectBtn = document.getElementById('disconnectBtn');
+
+    if (running) {
         badge.classList.add('active');
         text.textContent = 'Scanner Active';
+        if (connectBtn) connectBtn.disabled = true;
+        if (disconnectBtn) disconnectBtn.disabled = false;
     } else {
         badge.classList.remove('active');
         text.textContent = 'Scanner Offline';
+        if (connectBtn) connectBtn.disabled = false;
+        if (disconnectBtn) disconnectBtn.disabled = true;
+    }
+}
+
+async function connectMail() {
+    const host = document.getElementById('mailHost').value.trim();
+    const port = parseInt(document.getElementById('mailPort').value) || 993;
+    const email = document.getElementById('mailEmail').value.trim();
+    const password = document.getElementById('mailPassword').value;
+    const folder = document.getElementById('mailFolder').value.trim() || 'INBOX';
+    const interval = parseInt(document.getElementById('mailInterval').value) || 30;
+
+    if (!host || !email || !password) {
+        showToast('Please provide host, email, and app password.', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('connectBtn');
+    btn.disabled = true;
+    btn.textContent = 'Connecting…';
+
+    try {
+        const res = await fetch(`${API}/scanner/start`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                host, port, email, password, folder,
+                poll_interval: interval,
+                quarantine_folder: 'Quarantine'
+            })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+            showToast('Mailbox scanner started.', 'success');
+            updateScannerBadge(true);
+        } else {
+            showToast('Connection failed: ' + (data.detail || 'Unknown error'), 'error');
+            updateScannerBadge(false);
+        }
+    } catch (e) {
+        showToast('Connection error: ' + e.message, 'error');
+        updateScannerBadge(false);
+    } finally {
+        btn.textContent = 'Connect & Start Monitoring';
+        btn.disabled = false;
+    }
+}
+
+async function disconnectMail() {
+    const btn = document.getElementById('disconnectBtn');
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API}/scanner/stop`, { method: 'POST' });
+        const data = await res.json();
+        showToast(data.message || 'Scanner stopped.', 'info');
+        updateScannerBadge(false);
+    } catch (e) {
+        showToast('Error stopping scanner: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
     }
 }
 
 // =========================================================================
-// Results Table
+// Audit Trail Results
 // =========================================================================
 async function refreshResults() {
     try {
@@ -563,21 +579,15 @@ function renderResults(results) {
         const time = formatTime(r.timestamp);
         const statusClass = r.status.toLowerCase();
         const scoreColor = getScoreColor(r.threat_score);
-        const scorePct = Math.min(r.threat_score, 100);
         const sourceClass = r.source === 'imap' ? 'imap' : '';
 
         return `<tr onclick="showDetail(${idx})">
             <td>${time}</td>
             <td>${escapeHtml(r.sender || '—')}</td>
             <td>${escapeHtml(r.subject || '(no subject)')}</td>
-            <td><span class="status-badge ${statusClass}">${r.status}</span></td>
+            <td><span class="status-pill ${statusClass}">${r.status}</span></td>
             <td>
-                <div class="score-bar-cell">
-                    <span style="color:${scoreColor};font-weight:600;min-width:32px;">${r.threat_score.toFixed(1)}</span>
-                    <div class="score-bar">
-                        <div class="score-bar-fill" style="width:${scorePct}%;background:${scoreColor}"></div>
-                    </div>
-                </div>
+                <span class="score-inline" style="color:${scoreColor}">${r.threat_score.toFixed(1)}</span>
             </td>
             <td>${(r.confidence * 100).toFixed(0)}%</td>
             <td><span class="source-badge ${sourceClass}">${r.source}</span></td>
@@ -596,42 +606,35 @@ function showDetail(idx) {
 
     let html = `
         <div class="detail-row"><span class="label">Sender</span><span>${escapeHtml(r.sender || '—')}</span></div>
-        <div class="detail-row"><span class="label">Status</span><span class="status-badge ${r.status.toLowerCase()}">${r.status}</span></div>
-        <div class="detail-row"><span class="label">Threat Score</span><span style="color:${getScoreColor(r.threat_score)};font-weight:700">${r.threat_score.toFixed(1)} / 100</span></div>
+        <div class="detail-row"><span class="label">Status</span><span class="status-pill ${r.status.toLowerCase()}">${r.status}</span></div>
+        <div class="detail-row"><span class="label">Threat Score</span><span style="color:${getScoreColor(r.threat_score)};font-weight:600">${r.threat_score.toFixed(1)} / 100</span></div>
         <div class="detail-row"><span class="label">Confidence</span><span>${(r.confidence * 100).toFixed(0)}%</span></div>
         <div class="detail-row"><span class="label">Action</span><span>${escapeHtml(r.action)}</span></div>
         <div class="detail-row"><span class="label">Source</span><span class="source-badge ${r.source === 'imap' ? 'imap' : ''}">${r.source}</span></div>
         <div class="detail-row"><span class="label">Time</span><span>${formatTime(r.timestamp)}</span></div>
     `;
 
-    // Breakdown
     if (r.breakdown) {
-        html += `<div class="evidence-list"><h4>Score Breakdown</h4>`;
+        html += `<div style="margin-top:16px;"><span class="breakdown-title">Score Breakdown</span><div class="breakdown-chips">`;
         for (const [key, val] of Object.entries(r.breakdown)) {
             const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-            const color = val > 0 ? 'var(--status-phishing)' : val < 0 ? 'var(--status-safe)' : 'var(--text-muted)';
-            html += `<div class="evidence-item"><span class="ev-source">${label}</span><span class="ev-contribution" style="color:${color}">${val > 0 ? '+' : ''}${val.toFixed(1)}</span></div>`;
+            const color = val > 0 ? 'var(--status-phishing)' : val < 0 ? 'var(--status-safe)' : 'var(--muted)';
+            html += `<div class="breakdown-chip"><span class="breakdown-chip-title">${label}</span><span class="breakdown-chip-val" style="color:${color}">${val > 0 ? '+' : ''}${val.toFixed(1)}</span></div>`;
         }
-        html += `</div>`;
+        html += `</div></div>`;
     }
 
-    // Evidence
     if (r.evidence && r.evidence.length) {
-        html += `<div class="evidence-list"><h4>Evidence Trail</h4>`;
+        html += `<div style="margin-top:16px;"><span class="breakdown-title">Evidence Trail</span><ul class="evidence-list" style="margin-top:8px;">`;
         r.evidence.forEach(ev => {
-            const color = ev.contribution > 0 ? 'var(--status-phishing)' : ev.contribution < 0 ? 'var(--status-safe)' : 'var(--text-muted)';
-            html += `<div class="evidence-item">
-                <span class="ev-source">${escapeHtml(ev.source)}</span>
-                <span class="ev-contribution" style="color:${color}">${ev.contribution > 0 ? '+' : ''}${ev.contribution.toFixed(1)}</span>
-                <div class="ev-detail">${escapeHtml(ev.detail)}</div>
-            </div>`;
+            const color = ev.contribution > 0 ? 'var(--status-phishing)' : 'var(--status-safe)';
+            html += `<li><strong>${escapeHtml(ev.source)}</strong>: ${escapeHtml(ev.detail)} <span style="color:${color}; float:right; font-weight:600;">${ev.contribution > 0 ? '+' : ''}${ev.contribution.toFixed(1)}</span></li>`;
         });
-        html += `</div>`;
+        html += `</ul></div>`;
     }
 
-    // Body preview
     if (r.body_preview) {
-        html += `<div class="evidence-list"><h4>Body Preview</h4><div class="evidence-item"><div class="ev-detail" style="white-space:pre-wrap;">${escapeHtml(r.body_preview)}</div></div></div>`;
+        html += `<div style="margin-top:16px;"><span class="breakdown-title">Message Body Preview</span><pre class="text-input" style="white-space:pre-wrap; font-family:var(--font-mono); font-size:12px; margin-top:6px; max-height:160px; overflow-y:auto;">${escapeHtml(r.body_preview)}</pre></div>`;
     }
 
     document.getElementById('modalBody').innerHTML = html;
@@ -642,62 +645,48 @@ function closeModal() {
     document.getElementById('detailModal').classList.remove('visible');
 }
 
-// Close modal on overlay click
 document.getElementById('detailModal').addEventListener('click', (e) => {
     if (e.target === document.getElementById('detailModal')) closeModal();
 });
 
-// Close modal on Escape key
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeModal();
 });
 
 // =========================================================================
-// Utilities
+// Toast Notification System
 // =========================================================================
-function getScoreColor(score) {
-    if (score >= 75) return '#ef4444';
-    if (score >= 45) return '#f59e0b';
-    return '#10b981';
-}
-
-function formatTime(isoString) {
-    if (!isoString) return '—';
-    try {
-        const d = new Date(isoString + 'Z');
-        const now = new Date();
-        const diffMs = now - d;
-        const diffMin = Math.floor(diffMs / 60000);
-
-        if (diffMin < 1) return 'Just now';
-        if (diffMin < 60) return `${diffMin}m ago`;
-        const diffHr = Math.floor(diffMin / 60);
-        if (diffHr < 24) return `${diffHr}h ago`;
-
-        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-    } catch {
-        return isoString;
-    }
-}
-
-function escapeHtml(text) {
-    if (!text) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
 function showToast(message, type = 'info') {
     const container = document.getElementById('toastContainer');
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    const icons = { success: '✓', error: '✕', info: 'ℹ' };
-    toast.innerHTML = `<span>${icons[type] || 'ℹ'}</span> ${escapeHtml(message)}`;
+    toast.textContent = message;
+
     container.appendChild(toast);
     setTimeout(() => {
         toast.style.opacity = '0';
-        toast.style.transform = 'translateX(40px)';
-        toast.style.transition = '0.3s ease';
-        setTimeout(() => toast.remove(), 300);
-    }, 4000);
+        toast.style.transform = 'translateY(12px)';
+        setTimeout(() => toast.remove(), 250);
+    }, 3500);
+}
+
+// =========================================================================
+// Utilities
+// =========================================================================
+function formatTime(isoStr) {
+    if (!isoStr) return '—';
+    try {
+        const d = new Date(isoStr);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) +
+            ' ' + d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    } catch {
+        return isoStr;
+    }
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
 }
