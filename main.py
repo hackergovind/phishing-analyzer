@@ -138,17 +138,18 @@ async def analyze_eml(file: UploadFile = File(...)):
     raw = await file.read()
     parsed = parse_email(raw)
     verdict = analyze(parsed, ml_model)
+    result = verdict.to_dict()
 
     # Save to database
     await save_result(
         sender=parsed["sender"].get("email", ""),
         subject=parsed["headers"].get("subject", ""),
-        status=verdict.to_dict()["status"],
-        threat_score=verdict.to_dict()["threat_score"],
-        confidence=verdict.to_dict()["confidence"],
-        action=verdict.to_dict()["action"],
-        evidence=verdict.to_dict()["evidence"],
-        breakdown=verdict.to_dict()["breakdown"],
+        status=result["status"],
+        threat_score=result["threat_score"],
+        confidence=result["confidence"],
+        action=result["action"],
+        evidence=result["evidence"],
+        breakdown=result["breakdown"],
         body_preview=parsed.get("body", "")[:300],
         source="upload",
     )
@@ -161,12 +162,14 @@ async def analyze_text(text: str = Form(...)):
     """Paste raw email body text for quick analysis."""
     parsed = parse_raw_text(text)
     verdict = analyze(parsed, ml_model)
+    result = verdict.to_dict()
 
     # Save to database
-    result = verdict.to_dict()
+    sender = parsed["sender"].get("email", "")
+    subject = parsed["headers"].get("subject", "") or "(manual text input)"
     await save_result(
-        sender="",
-        subject="(manual text input)",
+        sender=sender,
+        subject=subject,
         status=result["status"],
         threat_score=result["threat_score"],
         confidence=result["confidence"],

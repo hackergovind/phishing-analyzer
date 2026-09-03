@@ -5,7 +5,7 @@ Uses aiosqlite for async access from FastAPI.
 import json
 import logging
 import aiosqlite
-from datetime import datetime
+from datetime import datetime, timezone
 
 from src.config import DB_PATH
 
@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS scan_results (
 async def init_db():
     """Create the database and tables if they don't exist."""
     async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA journal_mode=WAL;")
+        await db.execute("PRAGMA busy_timeout=5000;")
         await db.execute(CREATE_TABLE_SQL)
         await db.commit()
     logger.info("Database initialized at %s", DB_PATH)
@@ -51,13 +53,14 @@ async def save_result(
 ) -> int:
     """Save a scan result and return its ID."""
     async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA busy_timeout=5000;")
         cursor = await db.execute(
             """INSERT INTO scan_results 
                (timestamp, sender, subject, status, threat_score, confidence,
                 action, evidence, breakdown, body_preview, source)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
-                datetime.utcnow().isoformat(),
+                datetime.now(timezone.utc).isoformat(),
                 sender,
                 subject,
                 status,
@@ -71,7 +74,7 @@ async def save_result(
             ),
         )
         await db.commit()
-        return cursor.lastrowid
+        return cursor.lastrowid or 0
 
 
 async def get_results(limit: int = 50, offset: int = 0) -> list[dict]:

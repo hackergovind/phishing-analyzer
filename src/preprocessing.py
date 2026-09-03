@@ -48,22 +48,41 @@ def parse_email(raw_email_bytes: bytes) -> dict:
 
 
 def parse_raw_text(text: str) -> dict:
-    """Lightweight parser for raw text input (no EML structure)."""
+    """Lightweight parser for raw text input (detects headers if pasted)."""
     urls = re.findall(r'(https?://[^\s<>"\']+)', text)
+    headers = _empty_headers()
+    sender_info = {
+        "display_name": "",
+        "email": "",
+        "domain": "",
+        "display_name_has_email": False,
+        "reply_to_mismatch": False,
+    }
+
+    # Detect if user pasted email headers (From:, Subject:)
+    subject_match = re.search(r'^(?:subject|re|fw|fwd):\s*(.+)$', text, re.I | re.M)
+    if subject_match:
+        headers["subject"] = subject_match.group(1).strip()
+
+    from_match = re.search(r'^from:\s*(.+)$', text, re.I | re.M)
+    if from_match:
+        from_str = from_match.group(1).strip()
+        headers["from"] = from_str
+        d_name, e_addr = parseaddr(from_str)
+        dom = e_addr.split("@")[-1].lower() if "@" in e_addr else ""
+        sender_info["display_name"] = d_name
+        sender_info["email"] = e_addr
+        sender_info["domain"] = dom
+        sender_info["display_name_has_email"] = bool(re.search(r'[\w.-]+@[\w.-]+', d_name))
+
     return {
-        "headers": _empty_headers(),
+        "headers": headers,
         "body": text,
         "body_html": "",
         "urls": urls,
         "mismatched_links": [],
         "attachments": [],
-        "sender": {
-            "display_name": "",
-            "email": "",
-            "domain": "",
-            "display_name_has_email": False,
-            "reply_to_mismatch": False,
-        },
+        "sender": sender_info,
     }
 
 

@@ -84,20 +84,21 @@ def run_heuristics(parsed_data: dict) -> HeuristicResult:
     """Run all heuristic checks and return a combined result."""
     result = HeuristicResult()
 
-    body = parsed_data.get("body", "").lower()
+    raw_body = parsed_data.get("body", "")
+    body_lower = raw_body.lower()
     urls = parsed_data.get("urls", [])
     mismatched = parsed_data.get("mismatched_links", [])
     attachments = parsed_data.get("attachments", [])
     sender = parsed_data.get("sender", {})
     headers = parsed_data.get("headers", {})
 
-    _check_urgency(body, result)
-    _check_social_engineering(body, result)
+    _check_urgency(body_lower, headers, result)
+    _check_social_engineering(body_lower, result)
     _check_url_risk(urls, result)
     _check_mismatched_links(mismatched, result)
     _check_attachments(attachments, result)
     _check_sender_anomalies(sender, headers, result)
-    _check_structural_anomalies(headers, body, result)
+    _check_structural_anomalies(headers, raw_body, result)
 
     result.finalize()
     return result
@@ -107,14 +108,18 @@ def run_heuristics(parsed_data: dict) -> HeuristicResult:
 # Individual heuristic checkers
 # ---------------------------------------------------------------------------
 
-def _check_urgency(body: str, result: HeuristicResult):
-    """Score urgency / pressure language. Individual phrases add small amounts."""
+def _check_urgency(body: str, headers: dict, result: HeuristicResult):
+    """Score urgency / pressure language in body and subject line."""
     matched_count = 0
+    subject_lower = headers.get("subject", "").lower()
+    combined_text = f"{subject_lower} {body}"
+
     for phrase, weight in URGENCY_PHRASES.items():
-        if phrase in body:
+        if phrase in combined_text:
             matched_count += 1
-            result.add("urgency:phrase", weight, f'Found: "{phrase}"')
-    
+            location = "subject/body" if phrase in subject_lower else "body"
+            result.add("urgency:phrase", weight, f'Found: "{phrase}" ({location})')
+
     # If 3+ urgency phrases co-occur, add a compounding bonus
     if matched_count >= 3:
         result.add("urgency:cluster", 0.15, f"{matched_count} urgency phrases detected (cluster bonus)")
@@ -168,21 +173,33 @@ def _check_url_risk(urls: list[str], result: HeuristicResult):
 
 
 def _check_lookalike_domain(netloc: str, result: HeuristicResult):
-    """Detect domains that are very close to well-known brands (typosquatting)."""
-    # Extract the registrable part (e.g., "paypa1" from "paypa1.com")
-    parts = netloc.split(".")
+    """Detect domains that are very close to well-known brands (typosquatting or brand-in-subdomain)."""
+    # Normalize netloc
+    bare_netloc = netloc.split(":")[0]  # strip port if present
+    parts = bare_netloc.split(".")
     if len(parts) < 2:
         return
-    candidate = parts[-2]  # The main domain name without TLD
 
+    candidate = parts[-2]  # The main domain name without TLD
     sub_candidates = candidate.split("-")
 
     for target in _IMPERSONATION_TARGETS:
         target_name = target.split(".")[0]
-        if candidate == target_name:
-            continue  # exact match = legitimate
-            
-        # Only flag if edit distance is 1 or 2 (close typosquat)
+        
+        # If exact match or legitimate subdomain (e.g. login.paypal.com)
+        if bare_netloc == target or bare_netloc.endswith("." + target):
+            continue
+
+        # Check if brand appears in subdomains or misleading domain prefix (e.g. paypal.com.evil.xyz or secure-paypal.xyz)
+        if target_name in parts[:-2] or any(target_name == s for s in sub_candidates):
+            result.add(
+                "url:brand_impersonation",
+                0.35,
+                f'"{netloc}" contains trusted brand name "{target_name}" outside true domain'
+            )
+            return
+
+        # Check typosquatting on main candidate
         dist = levenshtein_distance(candidate, target_name)
         if 0 < dist <= 2 and len(candidate) >= 4:
             result.add(
@@ -190,17 +207,10 @@ def _check_lookalike_domain(netloc: str, result: HeuristicResult):
                 0.30,
                 f'"{netloc}" looks like "{target}" (edit distance {dist})'
             )
-            return  # One match is enough
-            
-        # Check sub-candidates (e.g. 'dr0pbox-secure' -> 'dr0pbox', 'secure')
+            return
+
+        # Check sub-candidates (e.g. 'dr0pbox-secure' -> 'dr0pbox')
         for sub in sub_candidates:
-            if sub == target_name:
-                result.add(
-                    "url:lookalike_domain",
-                    0.35,
-                    f'"{netloc}" contains target brand "{target}"'
-                )
-                return
             dist_sub = levenshtein_distance(sub, target_name)
             if 0 < dist_sub <= 2 and len(sub) >= 4:
                 result.add(
@@ -249,20 +259,28 @@ def _check_sender_anomalies(sender: dict, headers: dict, result: HeuristicResult
         )
 
 
-def _check_structural_anomalies(headers: dict, body: str, result: HeuristicResult):
-    """Check for structural email anomalies."""
-    subject = headers.get("subject", "")
+def _check_structural_anomalies(headers: dict, raw_body: str, result: HeuristicResult):
+    """Check for structural email anomalies using original raw casing."""
+    subject = headers.get("subject", "").strip()
 
     # Empty or missing subject
-    if not subject.strip():
+    if not subject:
         result.add("structure:no_subject", 0.08, "Email has no subject line")
-
-    # Subject line contains "Re:" or "Fwd:" but email is not a reply/forward
-    # (simplistic check — real systems inspect In-Reply-To header)
+    else:
+        # Subject shouting / excessive caps
+        letters = [c for c in subject if c.isalpha()]
+        if len(letters) >= 10:
+            subject_upper_ratio = sum(1 for c in letters if c.isupper()) / len(letters)
+            if subject_upper_ratio > 0.65:
+                result.add(
+                    "structure:excessive_subject_caps",
+                    0.12,
+                    f"Excessive subject capitalization ({subject_upper_ratio:.0%} uppercase)"
+                )
 
     # Extremely short body with URLs (classic phishing pattern)
-    word_count = len(body.split())
-    url_count = len(re.findall(r'https?://', body))
+    word_count = len(raw_body.split())
+    url_count = len(re.findall(r'https?://', raw_body))
     if word_count < 30 and url_count >= 1:
         result.add(
             "structure:short_body_with_urls",
@@ -270,12 +288,14 @@ def _check_structural_anomalies(headers: dict, body: str, result: HeuristicResul
             f"Very short body ({word_count} words) with {url_count} URL(s)"
         )
 
-    # Check for excessive capitalization (shouting)
-    if body and len(body) > 50:
-        upper_ratio = sum(1 for c in body if c.isupper()) / max(len(body), 1)
+    # Check for excessive capitalization in body (shouting)
+    body_letters = [c for c in raw_body if c.isalpha()]
+    if len(body_letters) > 40:
+        upper_ratio = sum(1 for c in body_letters if c.isupper()) / len(body_letters)
         if upper_ratio > 0.40:
             result.add(
                 "structure:excessive_caps",
                 0.10,
                 f"Excessive capitalization ({upper_ratio:.0%} uppercase)"
             )
+

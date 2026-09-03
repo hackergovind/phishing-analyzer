@@ -80,7 +80,7 @@ class MailScanner:
             raise ValueError("Mail credentials not configured. Set MAIL_EMAIL and MAIL_PASSWORD.")
 
         # Test connection FIRST so we fail fast with a clear error
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         await loop.run_in_executor(None, self._test_connection)
 
         self._running = True
@@ -153,7 +153,7 @@ class MailScanner:
     async def _fetch_and_analyze(self):
         """Connect to IMAP, fetch unseen messages, analyze each."""
         # IMAP operations are blocking, so run in a thread
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         messages = await loop.run_in_executor(None, self._imap_fetch_unseen)
 
         for msg_uid, raw_bytes in messages:
@@ -195,22 +195,22 @@ class MailScanner:
                 logger.error("Error analyzing email UID %s: %s", msg_uid, exc)
 
     def _imap_fetch_unseen(self) -> list[tuple[str, bytes]]:
-        """Fetch unseen emails via IMAP (blocking)."""
+        """Fetch unseen emails via IMAP using persistent UIDs (blocking)."""
         messages = []
         try:
             conn = imaplib.IMAP4_SSL(self._imap_host, self._imap_port)
             conn.login(self._email, self._password)
             conn.select(self._folder)
 
-            status, data = conn.search(None, "UNSEEN")
-            if status != "OK":
+            status, data = conn.uid("search", None, "UNSEEN")
+            if status != "OK" or not data or not data[0]:
                 conn.logout()
                 return messages
 
             uids = data[0].split()
             for uid in uids[-20:]:  # Cap at 20 per poll to avoid overload
-                status, msg_data = conn.fetch(uid, "(RFC822)")
-                if status == "OK" and msg_data[0]:
+                status, msg_data = conn.uid("fetch", uid, "(RFC822)")
+                if status == "OK" and msg_data and msg_data[0]:
                     raw = msg_data[0][1]
                     if isinstance(raw, bytes):
                         messages.append((uid.decode(), raw))
@@ -223,7 +223,7 @@ class MailScanner:
         return messages
 
     def _imap_move_to_quarantine(self, msg_uid: str):
-        """Move a message to the quarantine folder (blocking)."""
+        """Move a message to the quarantine folder using UID (blocking)."""
         try:
             conn = imaplib.IMAP4_SSL(self._imap_host, self._imap_port)
             conn.login(self._email, self._password)
@@ -232,9 +232,9 @@ class MailScanner:
             # Create quarantine folder if it doesn't exist
             conn.create(self._quarantine_folder)
 
-            # Copy to quarantine, then flag as deleted in original
-            conn.copy(msg_uid.encode(), self._quarantine_folder)
-            conn.store(msg_uid.encode(), "+FLAGS", "\\Deleted")
+            # Copy to quarantine by UID, then flag as deleted in original
+            conn.uid("copy", msg_uid.encode(), self._quarantine_folder)
+            conn.uid("store", msg_uid.encode(), "+FLAGS", "(\\Deleted)")
             conn.expunge()
 
             conn.logout()

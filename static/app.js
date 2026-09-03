@@ -12,6 +12,74 @@ const API = '';  // Same origin
 let threatChart = null;
 let allResults = [];
 let pollingInterval = null;
+let selectedEmlFile = null;
+let currentResultData = null;
+
+// Presets data
+const PRESETS = {
+    paypal: `Subject: URGENT: Your PayPal account has been compromised!
+From: PayPal Security <service@paypal.com.verify-access.xyz>
+
+Dear Customer, We detected unauthorized access to your account. 
+Your account will be suspended within 24 hours unless you verify your information immediately.
+
+Click here to secure your account: http://paypa1.com.malicious.top/secure/login?id=38294
+
+Failure to respond within 48 hours will result in permanent account closure.
+Confirm your identity now to avoid losing access to your funds.
+
+Regards,
+PayPal Security Team`,
+
+    microsoft: `Subject: SECURITY ALERT: Unusual activity detected on your Microsoft account.
+From: Microsoft Team <account-alerts@acc0unt-verify.tk>
+
+Dear valued customer, Someone tried to sign in to your account from an unknown device.
+
+Click here immediately to verify: https://acc0unt-verify.tk/microsoft/login
+
+If you do not verify within 24 hours, your account will be deactivated.
+Update your payment information to continue using our services.
+
+Microsoft Security Team`,
+
+    dropbox: `Subject: Reset your Dropbox password immediately
+From: Dropbox Notice <support@dr0pbox-secure.xyz>
+
+Dear user,
+Your Dropbox password expires today. Please click the link below to update your password and continue using our service.
+
+https://dr0pbox-secure.xyz/password-reset
+
+If you did not request this change, please ignore this email.
+
+Thank you,
+Dropbox Support`,
+
+    safe: `Subject: Project Phoenix Sync and Design Review
+From: Jordan Miller <jordan.miller@company.org>
+
+Hi Alex,
+
+The meeting has been rescheduled to Thursday at 2:00 PM. Please update your calendar.
+Also, attached is the quarterly report for Q3. Let me know if you have any questions before our sync.
+
+Thanks,
+Jordan`,
+
+    nigerian: `Subject: Confidential Inheritance Notification ($15,000,000 USD)
+From: Dr. James Okonkwo <barrister.james@attorney-lagos.biz>
+
+Dear Sir/Madam,
+
+I am Dr. James Okonkwo, a barrister in Lagos, Nigeria. My late client left behind an inheritance of $15,000,000. Because you share the same surname, I contact you to claim this fund.
+
+Kindly wire transfer $500 as processing fee to receive your inheritance. Please provide your bank account details and social security number.
+Do not share this with anyone. This is a confidential matter.
+
+Regards,
+Dr. James Okonkwo`
+};
 
 // =========================================================================
 // Initialization
@@ -22,6 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshResults();
     checkScannerStatus();
     startPolling();
+    initDropZone();
 });
 
 function startPolling() {
@@ -30,6 +99,195 @@ function startPolling() {
         refreshResults();
         checkScannerStatus();
     }, 5000);
+}
+
+// =========================================================================
+// Tabs Navigation
+// =========================================================================
+function switchTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+
+    if (tab === 'text') {
+        document.getElementById('tabBtnText').classList.add('active');
+        document.getElementById('paneText').classList.add('active');
+    } else if (tab === 'file') {
+        document.getElementById('tabBtnFile').classList.add('active');
+        document.getElementById('paneFile').classList.add('active');
+    } else if (tab === 'train') {
+        document.getElementById('tabBtnTrain').classList.add('active');
+        document.getElementById('paneTrain').classList.add('active');
+    }
+}
+
+function loadPreset(key) {
+    if (PRESETS[key]) {
+        switchTab('text');
+        const input = document.getElementById('analyzeInput');
+        input.value = PRESETS[key];
+        showToast(`Loaded ${key} preset. Click Analyze to run!`, 'info');
+    }
+}
+
+// =========================================================================
+// Drop Zone & File Upload
+// =========================================================================
+function initDropZone() {
+    const dropZone = document.getElementById('dropZone');
+    if (!dropZone) return;
+
+    ['dragenter', 'dragover'].forEach(name => {
+        dropZone.addEventListener(name, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.add('dragover');
+        });
+    });
+
+    ['dragleave', 'drop'].forEach(name => {
+        dropZone.addEventListener(name, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('dragover');
+        });
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if (files && files.length > 0) {
+            setEmlFile(files[0]);
+        }
+    });
+}
+
+function handleFileSelect(e) {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+        setEmlFile(files[0]);
+    }
+}
+
+function setEmlFile(file) {
+    if (!file.name.toLowerCase().endsWith('.eml')) {
+        showToast('Please select a valid .eml email file.', 'error');
+        return;
+    }
+    selectedEmlFile = file;
+    const badge = document.getElementById('selectedFileName');
+    badge.textContent = `Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+    badge.style.display = 'inline-block';
+    document.getElementById('analyzeFileBtn').disabled = false;
+    showToast(`Loaded ${file.name}`, 'info');
+}
+
+function clearFileUpload() {
+    selectedEmlFile = null;
+    const input = document.getElementById('emlFileInput');
+    if (input) input.value = '';
+    const badge = document.getElementById('selectedFileName');
+    if (badge) badge.style.display = 'none';
+    const btn = document.getElementById('analyzeFileBtn');
+    if (btn) btn.disabled = true;
+    document.getElementById('inlineResult').classList.remove('visible');
+}
+
+async function uploadEmlFile() {
+    if (!selectedEmlFile) {
+        showToast('Please select an .eml file first.', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('analyzeFileBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Analyzing EML…';
+
+    try {
+        const formData = new FormData();
+        formData.append('file', selectedEmlFile);
+
+        const res = await fetch(`${API}/analyze`, { method: 'POST', body: formData });
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+        const data = await res.json();
+
+        showInlineResult(data);
+        showToast(`EML analysis complete: ${data.status}`, data.status === 'Safe' ? 'success' : 'error');
+        refreshStats();
+        refreshResults();
+    } catch (e) {
+        showToast('EML analysis failed: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '🛡️ Analyze EML File';
+    }
+}
+
+// =========================================================================
+// Model Retraining
+// =========================================================================
+async function triggerTraining() {
+    const btn = document.getElementById('trainBtn');
+    const csvInput = document.getElementById('trainCsvInput');
+    const reportArea = document.getElementById('trainReportArea');
+    const reportContent = document.getElementById('trainReportContent');
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Training Ensemble Model…';
+
+    try {
+        const formData = new FormData();
+        if (csvInput.files && csvInput.files.length > 0) {
+            formData.append('file', csvInput.files[0]);
+        }
+
+        const res = await fetch(`${API}/train`, { method: 'POST', body: formData });
+        const data = await res.json();
+
+        if (data.status === 'ok') {
+            reportArea.style.display = 'block';
+            reportContent.textContent = data.report || 'Training completed successfully.';
+            showToast('Model retraining completed!', 'success');
+        } else {
+            showToast('Training failed: ' + (data.detail || 'Unknown error'), 'error');
+        }
+    } catch (e) {
+        showToast('Training error: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '⚡ Retrain Model';
+    }
+}
+
+// =========================================================================
+// Copy Report
+// =========================================================================
+function copyReport() {
+    if (!currentResultData) {
+        showToast('No active analysis to copy.', 'error');
+        return;
+    }
+    const d = currentResultData;
+    let text = `=== PhishGuard AI Analysis Report ===\n`;
+    text += `Verdict: ${d.status}\n`;
+    text += `Threat Score: ${d.threat_score.toFixed(1)} / 100\n`;
+    text += `Confidence: ${(d.confidence * 100).toFixed(0)}%\n`;
+    text += `Recommended Action: ${d.action}\n\n`;
+    text += `Breakdown:\n`;
+    if (d.breakdown) {
+        for (const [k, v] of Object.entries(d.breakdown)) {
+            text += `  - ${k}: ${v > 0 ? '+' : ''}${v.toFixed(1)}\n`;
+        }
+    }
+    text += `\nEvidence Trail:\n`;
+    (d.evidence || []).forEach(e => {
+        text += `  [${e.source}] ${e.detail} (${e.contribution > 0 ? '+' : ''}${e.contribution.toFixed(1)})\n`;
+    });
+
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('Report copied to clipboard!', 'success');
+    }).catch(err => {
+        showToast('Failed to copy: ' + err, 'error');
+    });
 }
 
 // =========================================================================
@@ -144,11 +402,12 @@ async function analyzeText() {
         showToast('Analysis failed: ' + e.message, 'error');
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '🛡️ Analyze';
+        btn.innerHTML = '🛡️ Analyze Text';
     }
 }
 
 function showInlineResult(data) {
+    currentResultData = data;
     const container = document.getElementById('inlineResult');
     container.classList.add('visible');
 
@@ -163,6 +422,20 @@ function showInlineResult(data) {
     document.getElementById('inlineAction').textContent = data.action;
     document.getElementById('inlineConfidence').textContent = (data.confidence * 100).toFixed(0) + '%';
 
+    // Render Breakdown Chips
+    const breakdownChips = document.getElementById('breakdownChips');
+    if (breakdownChips && data.breakdown) {
+        breakdownChips.innerHTML = '';
+        for (const [key, val] of Object.entries(data.breakdown)) {
+            const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            const color = val > 0 ? 'var(--status-phishing)' : val < 0 ? 'var(--status-safe)' : 'var(--text-muted)';
+            const chip = document.createElement('div');
+            chip.className = 'breakdown-chip';
+            chip.innerHTML = `<span class="breakdown-chip-title">${escapeHtml(label)}:</span> <span class="breakdown-chip-val" style="color:${color}">${val > 0 ? '+' : ''}${val.toFixed(1)}</span>`;
+            breakdownChips.appendChild(chip);
+        }
+    }
+
     const evidenceList = document.getElementById('inlineEvidence');
     evidenceList.innerHTML = '';
     (data.evidence || []).forEach(ev => {
@@ -175,6 +448,7 @@ function showInlineResult(data) {
 function clearAnalysis() {
     document.getElementById('analyzeInput').value = '';
     document.getElementById('inlineResult').classList.remove('visible');
+    currentResultData = null;
 }
 
 // =========================================================================

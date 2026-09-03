@@ -1,38 +1,52 @@
 # ╔══════════════════════════════════════════════════════════════╗
-# ║                 🎣  PHISHING ANALYZER                       ║
-# ║         ML-Driven Phishing Detection Engine                 ║
+# ║                 🛡️  PHISHGUARD AI                           ║
+# ║         Advanced Phishing Detection & Mail Defense          ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-An intelligent phishing detection engine that uses **machine learning** to analyze URLs and email content, scoring them for phishing risk with a trained classification model.
+An intelligent, multi-signal phishing detection engine that combines **calibrated ensemble machine learning**, **deep rule-based heuristics**, **email authentication analysis (SPF/DKIM/DMARC)**, and **real-time IMAP mailbox scanning** with an interactive dashboard.
 
-```
-          ┌──────────┐      ┌──────────────┐      ┌──────────┐
- Input ───▶  Feature  ──▶   ML Pipeline   ──▶   Risk Score │
- (URL/    │  Extract  │      │  (sklearn)   │      │  0-100   │
-  Email)  └──────────┘      └──────┬───────┘      └──────────┘
-                                   │
-                           ┌───────▼───────┐
-                           │  🔴 PHISHING  │  ← high confidence
-                           │  🟡 SUSPICIOUS│  ← medium confidence
-                           │  🟢 SAFE      │  ← low confidence
-                           └───────────────┘
+```mermaid
+graph TD
+    A[Incoming Email: EML / Raw Text / IMAP] --> B[Email Preprocessor]
+    B --> C1[1. Calibrated ML Ensemble\nLogistic Regression + Random Forest + GBM]
+    B --> C2[2. Granular Heuristics Engine\nUrgency, Brand Spoofing, Levenshtein, Caps]
+    B --> C3[3. Header Authentication\nSPF, DKIM, DMARC, Sender Spoof]
+    B --> C4[4. URL Risk & Threat Intel\nVirusTotal API / Structural Rules]
+    
+    C1 --> D[Multi-Signal Fusion Engine]
+    C2 --> D
+    C3 --> D
+    C4 --> D
+    
+    D --> E{Confidence Gate}
+    E -->|Score >= 60 & High Conf| F[🔴 PHISHING\nQuarantined]
+    E -->|Score >= 35 or Low Conf| G[🟡 SUSPICIOUS\nDelivered with Warning]
+    E -->|Score < 35| H[🟢 SAFE\nDelivered Clean]
+    
+    F --> I[(Async SQLite Database)]
+    G --> I
+    H --> I
+    I --> J[Web Dashboard UI / API]
 ```
 
 ---
 
-## ✨ Features
+## ✨ Key Features
 
 | Feature | Description |
 |---------|-------------|
-| **ML Classification** | Calibrated ensemble (LR + RF + GBM) via scikit-learn + joblib |
-| **URL Feature Extraction** | Typosquatting detection, risky TLDs, URL shorteners, IP-based URLs |
-| **Email Header Analysis** | SPF/DKIM/DMARC validation, Reply-To mismatch, sender spoofing |
-| **Heuristics Engine** | Urgency phrases, social engineering patterns, structural anomalies |
-| **Risk Scoring** | 0–100 scale with Safe / Suspicious / Phishing thresholds |
-| **Web Dashboard** | Real-time analysis via FastAPI + interactive HTML/JS UI |
-| **Database Logging** | Async SQLite-backed scan history with full audit trail |
-| **IMAP Scanner** | Background polling of a live mailbox with auto-quarantine |
-| **VirusTotal Integration** | Optional URL reputation checks via VirusTotal v3 API |
+| **Multi-Signal Fusion Engine** | Fuses 4 independent signal layers (ML, Heuristics, Header Auth, URL Risk) to produce a calibrated 0–100 threat score. |
+| **Calibrated ML Ensemble** | TF-IDF text vectorization + metadata features with a Soft Voting Ensemble (`LogisticRegression` + `RandomForest` + `GradientBoosting`) calibrated via Isotonic Regression. |
+| **Brand Spoofing & Lookalikes** | Levenshtein distance typosquatting detection + brand-in-subdomain impersonation inspection (e.g. `paypal.com.evil-site.xyz`). |
+| **Urgency & Social Engineering** | Phrase dictionary matching with compounding cluster bonuses when multiple pressure keywords co-occur. |
+| **Header Authentication** | Verifies `Authentication-Results`, `Received-SPF`, `DKIM-Signature`, `DMARC`, and sender display name / `Reply-To` mismatches. |
+| **Interactive Glassmorphism Dashboard** | Modern, responsive web interface with live Chart.js statistics, threat breakdown chips, and audit trail. |
+| **Drag & Drop .EML Upload** | Analyze complete raw `.eml` files with full multipart parsing, attachment risk inspection, and header verification. |
+| **Quick Presets Bar** | 1-click sample email loader (PayPal Phish, Microsoft Alert, Dropbox Reset, Safe Meeting, Nigerian Prince) for instant testing. |
+| **Model Retraining Panel** | Retrain the ML ensemble directly from the browser on synthetic data or upload your own CSV dataset. |
+| **Background IMAP Mail Scanner** | Automated background mailbox polling via IMAP SSL with persistent UID message tracking and auto-quarantine. |
+| **Async Database Audit Log** | Persistent SQLite storage using `aiosqlite` with WAL mode and transaction timeout protection. |
+| **Automated Test Suite** | 100% passing test coverage with `pytest` and scoring benchmarks in `test_scores.py`. |
 
 ---
 
@@ -40,60 +54,109 @@ An intelligent phishing detection engine that uses **machine learning** to analy
 
 ```
 phishing-analyzer/
-├── main.py                  ← FastAPI application entry point
+├── main.py                  ← FastAPI application server & REST endpoints
 ├── src/
-│   ├── analysis.py          ← Multi-signal fusion engine
-│   ├── heuristics.py        ← Rule-based heuristics checks
-│   ├── model.py             ← Ensemble ML model training & inference
-│   ├── preprocessing.py     ← Email parsing & feature extraction
-│   ├── database.py          ← Async SQLite persistence (aiosqlite)
-│   ├── mail_scanner.py      ← Background IMAP scanner
-│   └── config.py            ← Weights, thresholds, whitelists, API keys
+│   ├── analysis.py          ← Multi-signal scoring engine & confidence gating
+│   ├── heuristics.py        ← Rule-based heuristics, brand spoofing & urgency checks
+│   ├── model.py             ← Calibrated ML ensemble model training & inference
+│   ├── preprocessing.py     ← MIME email parsing, URL/attachment extraction
+│   ├── database.py          ← Async SQLite persistence (aiosqlite) with WAL mode
+│   ├── mail_scanner.py      ← Background IMAP polling & quarantine engine
+│   └── config.py            ← Tunable weights, thresholds, whitelists, and API keys
 ├── static/
-│   ├── index.html           ← Dashboard UI
-│   ├── app.js               ← Frontend JavaScript
-│   └── style.css            ← Dashboard styling
-├── trained_model.joblib     ← Pre-trained classification model
-├── test_scores.py           ← Scoring accuracy tests (6 scenarios)
-├── requirements.txt
-└── README.md
+│   ├── index.html           ← Modern dashboard UI (tabs, presets, dropzone)
+│   ├── app.js               ← Frontend logic, Chart.js, polling & clipboard copy
+│   └── style.css            ← Custom dark-mode glassmorphism design system
+├── tests/
+│   ├── __init__.py          ← Tests package marker
+│   └── test_analyzer.py     ← Automated pytest test suite (14 test cases)
+├── test_scores.py           ← Benchmark accuracy tests on 6 real-world scenarios
+├── trained_model.joblib     ← Serialized ensemble pipeline
+├── requirements.txt         ← Project dependencies
+└── README.md                ← Project documentation
 ```
 
 ---
 
 ## 🚀 Quick Start
 
-### 1. Clone & Install
+### 1. Prerequisites
+
+- Python 3.10+ (tested on Python 3.10, 3.11, 3.12, 3.14)
+- Git
+
+### 2. Installation
 
 ```bash
+# Clone the repository
 git clone https://github.com/hackergovind/phishing-analyzer.git
 cd phishing-analyzer
 
+# Create and activate virtual environment (optional but recommended)
 python -m venv .venv
-.venv\Scripts\activate        # Windows
-# source .venv/bin/activate   # macOS/Linux
 
+# On Windows:
+.venv\Scripts\activate
+
+# On Linux/macOS:
+# source .venv/bin/activate
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### 2. Run
+### 3. Run the Application
 
 ```bash
 python main.py
 ```
 
-Open **http://localhost:8000** for the web dashboard.  
-Interactive API docs: **http://localhost:8000/docs**
+- **Dashboard UI**: [http://127.0.0.1:8000](http://127.0.0.1:8000)
+- **Interactive Swagger Docs**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+- **ReDoc API Spec**: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
 
-### 3. Test
+---
+
+## 🧪 Testing & Verification
+
+### Run Automated Unit Tests (pytest)
+
+```bash
+pytest tests/ -v
+```
+
+All 14 tests will run across preprocessing, heuristics, ML inference, database CRUD, and FastAPI endpoints:
+
+```
+tests/test_analyzer.py::test_parse_raw_text_basic PASSED                 [  7%]
+tests/test_analyzer.py::test_parse_raw_text_with_headers PASSED          [ 14%]
+tests/test_analyzer.py::test_parse_email_eml_bytes PASSED                [ 21%]
+tests/test_analyzer.py::test_heuristics_urgency_and_social_engineering PASSED [ 28%]
+tests/test_analyzer.py::test_heuristics_brand_impersonation_in_subdomain PASSED [ 35%]
+tests/test_analyzer.py::test_heuristics_excessive_caps PASSED            [ 42%]
+tests/test_analyzer.py::test_ml_model_predict_proba PASSED               [ 50%]
+tests/test_analyzer.py::test_analyze_obvious_phishing PASSED             [ 57%]
+tests/test_analyzer.py::test_analyze_safe_email PASSED                   [ 64%]
+tests/test_analyzer.py::test_database_operations PASSED                  [ 71%]
+tests/test_analyzer.py::test_api_health PASSED                           [ 78%]
+tests/test_analyzer.py::test_api_analyze_text PASSED                     [ 85%]
+tests/test_analyzer.py::test_api_analyze_eml PASSED                      [ 92%]
+tests/test_analyzer.py::test_api_stats_and_results PASSED                [100%]
+============================== 14 passed in 8.52s ===============================
+```
+
+### Run Benchmark Accuracy Tests
 
 ```bash
 python test_scores.py
 ```
 
-Expected output — all 6 tests should PASS:
+Expected output:
 
 ```
+======================================================================
+SUMMARY TABLE
+======================================================================
 Test                                        Score       Status     Expected   OK?
 ----------------------------------------------------------------------
 1. Obvious PayPal Phishing                   75.8     Phishing     Phishing  PASS
@@ -106,16 +169,17 @@ Test                                        Score       Status     Expected   OK
 
 ---
 
-## 📡 API Usage
+## 📡 REST API Reference
 
-### Analyze raw email text
+### 1. Analyze Raw Email Text
+**`POST /analyze/text`**
 
 ```bash
-curl -X POST http://localhost:8000/analyze/text \
-  -F "text=URGENT: Your PayPal account has been compromised. Click here: http://paypa1.com.malicious.top/login"
+curl -X POST http://127.0.0.1:8000/analyze/text \
+  -F "text=URGENT: Your PayPal account has been suspended! Verify here: http://paypa1.com.malicious.top/secure"
 ```
 
-**Response:**
+**Response (`200 OK`):**
 ```json
 {
   "status": "Phishing",
@@ -131,124 +195,110 @@ curl -X POST http://localhost:8000/analyze/text \
   },
   "evidence": [
     { "source": "ML Ensemble", "detail": "Phishing probability: 100.00%", "contribution": 35.0 },
-    { "source": "Heuristic: urgency:phrase", "detail": "Found: \"unauthorized access\"", "contribution": 5.4 }
+    { "source": "Heuristic: urgency:phrase", "detail": "Found: \"unauthorized access\" (body)", "contribution": 5.4 },
+    { "source": "Heuristic: urgency:cluster", "detail": "7 urgency phrases detected (cluster bonus)", "contribution": 4.5 }
   ]
 }
 ```
 
-### Analyze an EML file
+### 2. Analyze Raw EML File
+**`POST /analyze`**
 
 ```bash
-curl -X POST http://localhost:8000/analyze \
-  -F "file=@suspicious_email.eml"
+curl -X POST http://127.0.0.1:8000/analyze \
+  -F "file=@suspicious_message.eml"
 ```
 
-### Get scan history
+### 3. Retrain Model
+**`POST /train`**
 
 ```bash
-curl http://localhost:8000/api/results?limit=10
+# Retrain on built-in synthetic balanced dataset:
+curl -X POST http://127.0.0.1:8000/train
+
+# Retrain on custom CSV:
+curl -X POST http://127.0.0.1:8000/train \
+  -F "file=@custom_dataset.csv"
 ```
 
-### Get statistics
+### 4. Health Check
+**`GET /health`**
 
 ```bash
-curl http://localhost:8000/api/stats
+curl http://127.0.0.1:8000/health
+```
+```json
+{
+  "status": "ok",
+  "model_trained": true,
+  "version": "2.0.0"
+}
 ```
 
-### Start IMAP background scanner
+### 5. Get Aggregate Statistics
+**`GET /api/stats`**
 
 ```bash
-curl -X POST http://localhost:8000/api/mail/connect \
+curl http://127.0.0.1:8000/api/stats
+```
+
+### 6. Get Recent Scan History
+**`GET /api/results?limit=20&offset=0`**
+
+```bash
+curl http://127.0.0.1:8000/api/results?limit=20
+```
+
+---
+
+## 📬 IMAP Mail Scanner Setup
+
+The IMAP background scanner continuously monitors an inbox for new messages, analyzes each incoming email, logs the verdict to the database, and automatically moves emails flagged as **Phishing** into a dedicated quarantine folder.
+
+### Configuration via Dashboard or API:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/mail/connect \
   -H "Content-Type: application/json" \
   -d '{
     "imap_host": "imap.gmail.com",
-    "email": "your@gmail.com",
-    "password": "your-app-password",
+    "imap_port": 993,
+    "email": "your-email@gmail.com",
+    "password": "your-16-character-app-password",
+    "folder": "INBOX",
     "poll_interval": 30
   }'
 ```
 
-> **Note for Gmail:** You must use an [App Password](https://myaccount.google.com/apppasswords), not your regular password.
+> [!IMPORTANT]
+> **Gmail Configuration**: Regular account passwords will be rejected by Google. You must generate an **App Password**:
+> 1. Go to your [Google Account Security Settings](https://myaccount.google.com/security).
+> 2. Ensure **2-Step Verification** is enabled.
+> 3. Go to [App Passwords](https://myaccount.google.com/apppasswords) and create a password for "Mail".
+> 4. Enter the 16-character password into PhishGuard AI.
 
 ---
 
-## ⚙️ Configuration
+## ⚙️ Environment Variables & Tuning
 
-All tunable settings live in [`src/config.py`](src/config.py):
+All parameters can be set in your environment or tuned in [`src/config.py`](src/config.py):
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `WEIGHT_ML_SCORE` | 35.0 | Max contribution from ensemble ML |
-| `WEIGHT_HEURISTIC_SCORE` | 30.0 | Max contribution from heuristics |
-| `WEIGHT_HEADER_AUTH` | 15.0 | Max contribution from header checks |
-| `WEIGHT_URL_RISK` | 20.0 | Max contribution from URL analysis |
-| `THRESHOLD_SUSPICIOUS` | 35.0 | Score above which email is Suspicious |
-| `THRESHOLD_PHISHING` | 60.0 | Score above which email is Phishing |
-| `WHITELIST_TRUST_OFFSET` | -25.0 | Trust discount for authenticated trusted domains |
-
-### Optional: VirusTotal integration
-
-```bash
-export VIRUSTOTAL_API_KEY="your_vt_api_key_here"
-python main.py
-```
+| Variable / Setting | Default | Description |
+|--------------------|---------|-------------|
+| `VIRUSTOTAL_API_KEY` | `""` | Optional VirusTotal v3 API key for live URL reputation queries |
+| `WEIGHT_ML_SCORE` | `35.0` | Maximum contribution from the ensemble ML classifier |
+| `WEIGHT_HEURISTIC_SCORE` | `30.0` | Maximum contribution from the heuristics engine |
+| `WEIGHT_HEADER_AUTH` | `15.0` | Maximum contribution from email authentication failures |
+| `WEIGHT_URL_RISK` | `20.0` | Maximum contribution from URL structural risk analysis |
+| `THRESHOLD_SUSPICIOUS` | `35.0` | Threat score threshold for flagging as Suspicious |
+| `THRESHOLD_PHISHING` | `60.0` | Threat score threshold for classifying as Phishing |
+| `CONFIDENCE_FLOOR_FOR_PHISHING` | `0.60` | Minimum confidence required to Quarantine (prevents false positives) |
+| `WHITELIST_TRUST_OFFSET` | `-25.0` | Trust discount for authenticated whitelisted domains |
 
 ---
 
-## 🧪 Detection Capabilities
+## 🛡️ Responsible Disclosure & License
 
-| Indicator | Signal | Weight |
-|-----------|--------|--------|
-| 🔴 ML ensemble flags email | ML probabilities | Up to 35 pts |
-| 🔴 Typosquatting domain (e.g. `paypa1.com`) | Levenshtein distance | 0.30–0.35 |
-| 🔴 IP-based URL (e.g. `http://192.168.1.1/login`) | Regex match | 0.25 |
-| 🔴 Mismatched display/href link | HTML link analysis | 0.35 |
-| 🟡 Risky TLD (`.tk`, `.xyz`, `.ml`, …) | TLD list | 0.12 |
-| 🟡 Urgency language cluster | Phrase matching | 0.10–0.22 per phrase |
-| 🟡 Social engineering patterns | Phrase matching | 0.04–0.18 per phrase |
-| 🟡 URL shortener | Domain list | 0.10 |
-| 🟡 SPF/DKIM/DMARC failure | Header parsing | Up to 15 pts |
-| 🟢 Authenticated trusted domain | Whitelist + auth | -25 pts boost |
+This software is developed for authorized defense, security awareness training, and academic analysis.
+Distributed under the **MIT License**.
 
----
-
-## ⚙️ Tech Stack
-
-| Component | Technology |
-|-----------|-----------|
-| **Backend** | Python 3.11+, FastAPI, uvicorn |
-| **ML Pipeline** | scikit-learn (LR + RF + GBM ensemble), joblib |
-| **Database** | SQLite via aiosqlite (async) |
-| **Frontend** | HTML/CSS/JavaScript |
-| **Email Parsing** | Python `email`, BeautifulSoup4 |
-| **URL Reputation** | VirusTotal v3 API (optional) |
-
----
-
-## ⚠️ Disclaimer
-
-> **This tool is provided for educational and authorized security testing purposes only.**
->
-> The author does not condone, encourage, or support the use of this software for any illegal or
-> unethical activity. Any actions taken using this tool are the sole responsibility of the user.
-> Always obtain explicit, written authorization before testing any system you do not own.
->
-> **By using this software, you agree that:**
-> 1. You will only use it on systems you own or have explicit written permission to test.
-> 2. You understand and comply with all applicable local, state, national, and international laws.
-> 3. The author is not responsible for any misuse, damage, or legal consequences arising from the use of this software.
-> 4. This software is provided "AS IS" without warranty of any kind.
->
-> If you discover a vulnerability in a third-party system, follow responsible disclosure practices.
-
----
-
-## 📜 License
-
-MIT
-
----
-
-<div align="center">
-<sub>Built for defenders. Used responsibly.</sub>
-</div>

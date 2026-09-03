@@ -81,24 +81,82 @@
             </div>
         </div>
 
-        <!-- Manual Analysis Card -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Analysis & Inspection Card -->
         <div class="glass-card">
             <div class="card-header">
-                <h2>Analyze Email Text</h2>
+                <div class="tabs-nav">
+                    <button class="tab-btn active" id="tabBtnText" onclick="switchTab('text')">📝 Email Text</button>
+                    <button class="tab-btn" id="tabBtnFile" onclick="switchTab('file')">📁 Upload .EML</button>
+                    <button class="tab-btn" id="tabBtnTrain" onclick="switchTab('train')">🧠 Train Model</button>
+                </div>
                 <div class="card-icon">🔍</div>
             </div>
             <div class="card-body">
-                <textarea
-                    class="analyze-textarea"
-                    id="analyzeInput"
-                    placeholder="Paste email body text here to analyze for phishing indicators…"
-                ></textarea>
-                <div class="btn-row">
-                    <button class="btn btn-primary" id="analyzeBtn" onclick="analyzeText()">
-                        🛡️ Analyze
-                    </button>
-                    <button class="btn btn-secondary" onclick="clearAnalysis()">Clear</button>
+                <!-- Tab 1: Text Input -->
+                <div class="tab-pane active" id="paneText">
+                    <div class="presets-bar">
+                        <span class="presets-label">Quick Presets:</span>
+                        <button class="preset-chip" onclick="loadPreset('paypal')">PayPal Phish</button>
+                        <button class="preset-chip" onclick="loadPreset('microsoft')">Microsoft Alert</button>
+                        <button class="preset-chip" onclick="loadPreset('dropbox')">Dropbox Reset</button>
+                        <button class="preset-chip" onclick="loadPreset('safe')">Safe Meeting</button>
+                        <button class="preset-chip" onclick="loadPreset('nigerian')">Prince Scam</button>
+                    </div>
+                    <textarea
+                        class="analyze-textarea"
+                        id="analyzeInput"
+                        placeholder="Paste email headers and body text here to analyze for phishing indicators…"
+                    ></textarea>
+                    <div class="btn-row">
+                        <button class="btn btn-primary" id="analyzeBtn" onclick="analyzeText()">
+                            🛡️ Analyze Text
+                        </button>
+                        <button class="btn btn-secondary" onclick="clearAnalysis()">Clear</button>
+                    </div>
                 </div>
+
+                <!-- Tab 2: EML File Upload -->
+                <div class="tab-pane" id="paneFile">
+                    <div class="drop-zone" id="dropZone" onclick="document.getElementById('emlFileInput').click()">
+                        <div class="drop-zone-icon">📥</div>
+                        <div class="drop-zone-title">Drop your <code>.eml</code> file here, or click to browse</div>
+                        <div class="drop-zone-sub">Extracts full raw headers, MIME parts, DKIM/SPF auth, and attachments</div>
+                        <input type="file" id="emlFileInput" accept=".eml" style="display:none" onchange="handleFileSelect(event)">
+                        <div id="selectedFileName" class="selected-file-badge" style="display:none"></div>
+                    </div>
+                    <div class="btn-row" style="margin-top:14px;">
+                        <button class="btn btn-primary" id="analyzeFileBtn" onclick="uploadEmlFile()" disabled>
+                            🛡️ Analyze EML File
+                        </button>
+                        <button class="btn btn-secondary" onclick="clearFileUpload()">Clear</button>
+                    </div>
+                </div>
+
+                <!-- Tab 3: Model Retraining -->
+                <div class="tab-pane" id="paneTrain">
+                    <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px;">
+                        Train the ensemble machine learning model (Logistic Regression + Random Forest + Gradient Boosting with probability calibration).
+                    </p>
+                    <div class="form-group" style="margin-bottom:12px;">
+                        <label>Optional: Upload Custom Training CSV (columns: <code>email_body, label, ...</code>)</label>
+                        <input type="file" class="form-input" id="trainCsvInput" accept=".csv">
+                    </div>
+                    <div class="btn-row">
+                        <button class="btn btn-primary" id="trainBtn" onclick="triggerTraining()">
+                            ⚡ Retrain Model
+                        </button>
+                    </div>
+                    <div id="trainReportArea" class="train-report" style="display:none">
+                        <h4>Training Classification Report</h4>
+                        <pre id="trainReportContent"></pre>
+                    </div>
+                </div>
+
+                <!-- Result Container (Shared across text and file analysis) -->
                 <div class="result-inline" id="inlineResult">
                     <div class="result-header-row">
                         <div>
@@ -106,9 +164,22 @@
                         </div>
                         <div class="result-score" id="inlineScore"></div>
                     </div>
-                    <div style="font-size:0.8rem;color:var(--text-secondary);margin-top:4px;" id="inlineAction"></div>
+                    <div style="font-size:0.85rem;color:var(--text-primary);margin-top:6px;font-weight:600;" id="inlineAction"></div>
                     <div style="font-size:0.78rem;color:var(--text-muted);margin-top:2px;">
                         Confidence: <strong id="inlineConfidence"></strong>
+                    </div>
+
+                    <!-- Visual Breakdown Bar -->
+                    <div class="breakdown-container" id="breakdownContainer" style="margin-top:10px;">
+                        <div class="breakdown-label-row">
+                            <span style="font-size:0.75rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;">Signal Contribution Breakdown</span>
+                        </div>
+                        <div class="breakdown-chips" id="breakdownChips"></div>
+                    </div>
+
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;">
+                        <h4 style="font-size:0.8rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.04em;">Evidence Trail</h4>
+                        <button class="btn btn-secondary" onclick="copyReport()" style="padding:4px 10px;font-size:0.72rem;">📋 Copy Report</button>
                     </div>
                     <ul class="result-evidence" id="inlineEvidence"></ul>
                 </div>
@@ -118,7 +189,7 @@
         <!-- Mail Config Card -->
         <div class="glass-card" style="grid-column: 1 / -1;">
             <div class="card-header">
-                <h2>📬 Mail Scanner Configuration</h2>
+                <h2>📬 IMAP Mail Scanner Configuration</h2>
                 <div class="card-icon">⚙️</div>
             </div>
             <div class="card-body">
